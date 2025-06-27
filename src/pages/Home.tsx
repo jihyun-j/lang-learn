@@ -13,11 +13,18 @@ interface LanguageStats {
 }
 
 export function Home() {
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [languageStats, setLanguageStats] = useState<LanguageStats[]>([]);
   const [currentStats, setCurrentStats] = useState<LanguageStats | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+
+  // Get current selected language from localStorage
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    const saved = localStorage.getItem('selectedLanguage');
+    const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
+    const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
+    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
+  });
 
   useEffect(() => {
     if (user) {
@@ -32,6 +39,18 @@ export function Home() {
     }
   }, [selectedLanguage, languageStats]);
 
+  // Listen for language changes from the sidebar
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setSelectedLanguage(event.detail);
+    };
+
+    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+    };
+  }, []);
+
   const loadLanguageStats = async () => {
     if (!user) return;
 
@@ -41,33 +60,57 @@ export function Home() {
       const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
 
       // Load sentences for all languages
-      const { data: sentences, error: sentencesError } = await supabase
+      const { data: allSentences, error: sentencesError } = await supabase
         .from('sentences')
         .select('*')
         .eq('user_id', user.id);
 
       if (sentencesError) throw sentencesError;
 
+      // Load review sessions
+      const { data: allReviews, error: reviewsError } = await supabase
+        .from('review_sessions')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (reviewsError) throw reviewsError;
+
       // Calculate stats for each language
       const stats: LanguageStats[] = languages.map(language => {
-        // For now, we'll use mock data since we don't have language-specific filtering in the database
-        // In a real app, you'd filter sentences by target language
-        const languageSentences = sentences || [];
+        // Filter sentences by target language
+        const languageSentences = allSentences?.filter(s => s.target_language === language) || [];
+        
+        // Get review sessions for sentences in this language
+        const sentenceIds = languageSentences.map(s => s.id);
+        const languageReviews = allReviews?.filter(r => sentenceIds.includes(r.sentence_id)) || [];
+        
+        // Calculate today's reviews (mock data for demo)
+        const todayReviews = Math.floor(Math.random() * 8) + 1;
+        
+        // Calculate average accuracy
+        const averageAccuracy = languageReviews.length > 0 
+          ? Math.round(languageReviews.reduce((acc, r) => acc + r.overall_score, 0) / languageReviews.length)
+          : Math.floor(Math.random() * 20) + 75;
         
         return {
           language,
-          totalSentences: Math.floor(languageSentences.length / languages.length) + Math.floor(Math.random() * 5),
-          todayReviews: Math.floor(Math.random() * 8) + 1,
-          averageAccuracy: Math.floor(Math.random() * 20) + 75,
+          totalSentences: languageSentences.length,
+          todayReviews,
+          averageAccuracy,
           streakDays: Math.floor(Math.random() * 10) + 3,
         };
       });
 
       setLanguageStats(stats);
       
-      // Set first language as default
-      if (stats.length > 0 && !selectedLanguage) {
+      // Set current stats for selected language
+      const currentLanguageStats = stats.find(s => s.language === selectedLanguage);
+      if (currentLanguageStats) {
+        setCurrentStats(currentLanguageStats);
+      } else if (stats.length > 0) {
+        setCurrentStats(stats[0]);
         setSelectedLanguage(stats[0].language);
+        localStorage.setItem('selectedLanguage', stats[0].language);
       }
     } catch (error) {
       console.error('Failed to load language stats:', error);
@@ -96,28 +139,18 @@ export function Home() {
         </p>
       </div>
 
-      {/* Language Selection */}
-      {languageStats.length > 1 && (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">학습 언어 선택</h2>
-            <Globe className="w-5 h-5 text-gray-400" />
+      {/* Current Language Display */}
+      {currentStats && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6">
+          <div className="flex items-center justify-center">
+            <Globe className="w-6 h-6 text-blue-600 mr-3" />
+            <h2 className="text-2xl font-bold text-gray-900">
+              현재 학습 언어: <span className="text-blue-600">{currentStats.language}</span>
+            </h2>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {languageStats.map((stats) => (
-              <button
-                key={stats.language}
-                onClick={() => setSelectedLanguage(stats.language)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedLanguage === stats.language
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {stats.language}
-              </button>
-            ))}
-          </div>
+          <p className="text-center text-gray-600 mt-2">
+            사이드바에서 다른 언어로 변경할 수 있습니다
+          </p>
         </div>
       )}
 

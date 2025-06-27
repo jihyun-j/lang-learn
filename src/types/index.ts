@@ -13,6 +13,7 @@ export interface Sentence {
   korean_translation: string;
   keywords: string[];
   difficulty: 'easy' | 'medium' | 'hard';
+  target_language: string; // Added target_language field
   created_at: string;
   updated_at: string;
 }

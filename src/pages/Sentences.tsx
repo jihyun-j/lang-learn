@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Sentence } from '../types';
@@ -15,13 +15,34 @@ export function Sentences() {
   const [totalCount, setTotalCount] = useState(0);
   const { user } = useAuth();
 
+  // Get current selected language from localStorage
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    const saved = localStorage.getItem('selectedLanguage');
+    const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
+    const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
+    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
+  });
+
   const itemsPerPage = 12;
 
   useEffect(() => {
     if (user) {
       loadSentences();
     }
-  }, [user, currentPage, searchTerm, difficultyFilter]);
+  }, [user, currentPage, searchTerm, difficultyFilter, selectedLanguage]);
+
+  // Listen for language changes from the sidebar
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setSelectedLanguage(event.detail);
+      setCurrentPage(1); // Reset to first page when language changes
+    };
+
+    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+    };
+  }, []);
 
   const loadSentences = async () => {
     if (!user) return;
@@ -32,6 +53,7 @@ export function Sentences() {
         .from('sentences')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
+        .eq('target_language', selectedLanguage) // Filter by selected language
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
@@ -191,7 +213,9 @@ export function Sentences() {
       {sentences.length === 0 && !loading && (
         <div className="text-center py-12">
           <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">등록된 문장이 없습니다.</p>
+          <p className="text-lg text-gray-600">
+            {selectedLanguage}로 등록된 문장이 없습니다.
+          </p>
           <p className="text-sm text-gray-500 mt-2">먼저 '오늘의 학습'에서 문장을 추가해보세요.</p>
         </div>
       )}
@@ -221,9 +245,15 @@ export function Sentences() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">문장 리스트</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            총 {totalCount}개의 문장을 학습하고 있습니다.
+          <div className="flex items-center mb-2">
+            <h1 className="text-3xl font-bold text-gray-900">문장 리스트</h1>
+            <div className="ml-4 flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              <Globe className="w-4 h-4 mr-1" />
+              {selectedLanguage}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">
+            {selectedLanguage}로 총 {totalCount}개의 문장을 학습하고 있습니다.
           </p>
         </div>
         <div className="mt-4 sm:mt-0">

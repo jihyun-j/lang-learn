@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, List, User, LogOut } from 'lucide-react';
+import { Home, BookOpen, List, User, LogOut, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface LayoutProps {
@@ -10,6 +10,17 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+
+  // Get user's target languages
+  const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
+  const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
+  
+  // Get current selected language from localStorage or default to first language
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    const saved = localStorage.getItem('selectedLanguage');
+    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
+  });
 
   const navigation = [
     { name: '홈', href: '/', icon: Home },
@@ -23,6 +34,15 @@ export function Layout({ children }: LayoutProps) {
     await signOut();
   };
 
+  const handleLanguageSelect = (language: string) => {
+    setSelectedLanguage(language);
+    localStorage.setItem('selectedLanguage', language);
+    setIsLanguageDropdownOpen(false);
+    
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: language }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
@@ -33,6 +53,44 @@ export function Layout({ children }: LayoutProps) {
             <BookOpen className="w-8 h-8 text-white" />
             <span className="ml-2 text-xl font-bold text-white">LangLearn</span>
           </div>
+
+          {/* Language Selector */}
+          {languages.length > 1 && (
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="relative">
+                <button
+                  onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <Globe className="w-4 h-4 mr-2 text-gray-500" />
+                    <span>{selectedLanguage}</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${
+                    isLanguageDropdownOpen ? 'rotate-180' : ''
+                  }`} />
+                </button>
+
+                {isLanguageDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                    {languages.map((language) => (
+                      <button
+                        key={language}
+                        onClick={() => handleLanguageSelect(language)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                          selectedLanguage === language
+                            ? 'bg-blue-50 text-blue-700 font-medium'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        {language}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
@@ -87,6 +145,14 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Click outside to close dropdown */}
+      {isLanguageDropdownOpen && (
+        <div
+          className="fixed inset-0 z-0"
+          onClick={() => setIsLanguageDropdownOpen(false)}
+        />
+      )}
     </div>
   );
 }

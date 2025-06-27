@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Sparkles, BookOpen, Check, Globe } from 'lucide-react';
 import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
@@ -16,7 +16,27 @@ export function Learn() {
   // Get user's target languages
   const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
   const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
-  const [selectedLanguage, setSelectedLanguage] = useState(languages[0] || '영어');
+  
+  // Get current selected language from localStorage or default to first language
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    const saved = localStorage.getItem('selectedLanguage');
+    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
+  });
+
+  // Listen for language changes from the sidebar
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setSelectedLanguage(event.detail);
+      // Clear current translation when language changes
+      setTranslation('');
+      setUsefulExpressions([]);
+    };
+
+    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+    };
+  }, []);
 
   const handleTranslate = async () => {
     if (!sentence.trim()) return;
@@ -46,6 +66,7 @@ export function Learn() {
           korean_translation: translation,
           keywords: usefulExpressions,
           difficulty: difficulty,
+          target_language: selectedLanguage, // Save the selected language
         });
 
       if (error) throw error;
@@ -62,6 +83,14 @@ export function Learn() {
       console.error('Save failed:', error);
       alert('저장에 실패했습니다. 다시 시도해주세요.');
     }
+  };
+
+  const handleLanguageSelect = (language: string) => {
+    setSelectedLanguage(language);
+    localStorage.setItem('selectedLanguage', language);
+    // Clear current translation when language changes
+    setTranslation('');
+    setUsefulExpressions('');
   };
 
   return (
@@ -89,7 +118,7 @@ export function Learn() {
                   {languages.map((language) => (
                     <button
                       key={language}
-                      onClick={() => setSelectedLanguage(language)}
+                      onClick={() => handleLanguageSelect(language)}
                       className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
                         selectedLanguage === language
                           ? 'bg-blue-600 text-white shadow-md'
@@ -103,6 +132,16 @@ export function Learn() {
                 </div>
               </div>
             )}
+
+            {/* Current Language Display */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="flex items-center">
+                <Globe className="w-5 h-5 text-blue-600 mr-2" />
+                <span className="text-sm font-medium text-blue-800">
+                  현재 학습 언어: <span className="font-bold">{selectedLanguage}</span>
+                </span>
+              </div>
+            </div>
 
             {/* Input Section */}
             <div>
