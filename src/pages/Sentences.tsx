@@ -97,15 +97,64 @@ export function Sentences() {
     }
   };
 
-  const playAudio = (text: string, lang: string = 'en-US') => {
+  // Enhanced text-to-speech function with proper language support
+  const playAudio = (text: string) => {
+    if (!text.trim()) return;
+
+    // Language code mapping for better TTS support
+    const languageMap: Record<string, string> = {
+      '영어': 'en-US',
+      '일본어': 'ja-JP',
+      '중국어': 'zh-CN',
+      '프랑스어': 'fr-FR',
+      '독일어': 'de-DE',
+      '스페인어': 'es-ES',
+      '이탈리아어': 'it-IT',
+      '러시아어': 'ru-RU',
+      '포르투갈어': 'pt-BR',
+      '아랍어': 'ar-SA'
+    };
+
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = selectedLanguage === '영어' ? 'en-US' : 
-                    selectedLanguage === '일본어' ? 'ja-JP' :
-                    selectedLanguage === '중국어' ? 'zh-CN' :
-                    selectedLanguage === '프랑스어' ? 'fr-FR' :
-                    selectedLanguage === '독일어' ? 'de-DE' :
-                    selectedLanguage === '스페인어' ? 'es-ES' : 'en-US';
-    speechSynthesis.speak(utterance);
+    utterance.lang = languageMap[selectedLanguage] || 'en-US';
+    
+    // Set speech rate and pitch for better pronunciation
+    utterance.rate = 0.8; // Slightly slower for learning
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Handle errors
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      alert(`발음 재생에 실패했습니다. ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`);
+    };
+
+    // Check if voices are available and select the best one
+    const voices = speechSynthesis.getVoices();
+    const targetLang = languageMap[selectedLanguage] || 'en-US';
+    
+    // Try to find a voice that matches the language
+    const voice = voices.find(v => v.lang === targetLang) || 
+                  voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    // Ensure voices are loaded before speaking
+    if (voices.length === 0) {
+      speechSynthesis.addEventListener('voiceschanged', () => {
+        const updatedVoices = speechSynthesis.getVoices();
+        const updatedVoice = updatedVoices.find(v => v.lang === targetLang) || 
+                            updatedVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        if (updatedVoice) {
+          utterance.voice = updatedVoice;
+        }
+        speechSynthesis.speak(utterance);
+      }, { once: true });
+    } else {
+      speechSynthesis.speak(utterance);
+    }
   };
 
   const startQuiz = () => {
@@ -155,17 +204,18 @@ export function Sentences() {
                 <div className="flex items-start space-x-2">
                   <button
                     onClick={() => playAudio(sentence.english_text)}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                    title={`${selectedLanguage} 발음 듣기`}
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
-                  <div>
-                    <p className="font-medium text-gray-900">{sentence.english_text}</p>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900 break-words">{sentence.english_text}</p>
                   </div>
                 </div>
               </div>
               <div className="col-span-3">
-                <p className="text-gray-700">{sentence.korean_translation}</p>
+                <p className="text-gray-700 break-words">{sentence.korean_translation}</p>
               </div>
               <div className="col-span-1">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
@@ -385,6 +435,29 @@ export function Sentences() {
           </div>
         </div>
       )}
+
+      {/* Tips Section */}
+      <div className="bg-blue-50 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 문장 리스트 활용 팁</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>발음 버튼을 클릭하여 {selectedLanguage} 원어민 발음을 들어보세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>검색 기능으로 특정 문장을 빠르게 찾을 수 있어요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>난이도별로 필터링하여 체계적으로 학습하세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>복습 모드에서 이 문장들을 음성으로 연습할 수 있어요</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
