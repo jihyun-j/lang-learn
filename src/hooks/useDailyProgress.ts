@@ -33,12 +33,12 @@ export function useDailyProgress(selectedLanguage: string) {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
 
-      // Load user goals
+      // Load user goals - use maybeSingle() to handle case when no goals exist
       const { data: goalsData } = await supabase
         .from('user_goals')
         .select('daily_sentence_goal, daily_review_goal')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       // Load today's sentences for selected language
       const { data: sentencesData } = await supabase
