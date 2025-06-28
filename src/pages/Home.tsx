@@ -213,38 +213,6 @@ export function Home() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link
-          to="/sentences"
-          className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow group"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-full group-hover:bg-purple-200 transition-colors">
-              <BookOpen className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">문장 리스트</h3>
-              <p className="text-sm text-gray-600">저장된 모든 문장을 확인하고 관리하세요</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/profile"
-          className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow group"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-indigo-100 rounded-full group-hover:bg-indigo-200 transition-colors">
-              <Globe className="w-6 h-6 text-indigo-600" />
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">프로필</h3>
-              <p className="text-sm text-gray-600">학습 통계와 개인 정보를 확인하세요</p>
-            </div>
-          </div>
-        </Link>
-      </div>
     </div>
   );
 }
