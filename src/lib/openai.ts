@@ -77,6 +77,49 @@ function extractCleanTranslation(content: string): string {
   return cleanText;
 }
 
+// Helper function to determine sentence context and tone
+function analyzeSentenceContext(sentence: string): {
+  tone: 'formal' | 'casual' | 'business' | 'academic';
+  type: 'question' | 'statement' | 'exclamation' | 'command';
+  domain: 'daily' | 'business' | 'academic' | 'technical' | 'social';
+} {
+  const lowerSentence = sentence.toLowerCase();
+  
+  // Determine tone
+  let tone: 'formal' | 'casual' | 'business' | 'academic' = 'casual';
+  if (lowerSentence.includes('please') || lowerSentence.includes('would you') || lowerSentence.includes('could you')) {
+    tone = 'formal';
+  } else if (lowerSentence.includes('meeting') || lowerSentence.includes('project') || lowerSentence.includes('deadline')) {
+    tone = 'business';
+  } else if (lowerSentence.includes('research') || lowerSentence.includes('study') || lowerSentence.includes('analysis')) {
+    tone = 'academic';
+  }
+  
+  // Determine type
+  let type: 'question' | 'statement' | 'exclamation' | 'command' = 'statement';
+  if (sentence.includes('?')) {
+    type = 'question';
+  } else if (sentence.includes('!')) {
+    type = 'exclamation';
+  } else if (sentence.match(/^(please|let's|don't|do|go|come|take|give)/i)) {
+    type = 'command';
+  }
+  
+  // Determine domain
+  let domain: 'daily' | 'business' | 'academic' | 'technical' | 'social' = 'daily';
+  if (lowerSentence.match(/\b(meeting|project|deadline|client|business|company|office)\b/)) {
+    domain = 'business';
+  } else if (lowerSentence.match(/\b(research|study|analysis|theory|academic|university)\b/)) {
+    domain = 'academic';
+  } else if (lowerSentence.match(/\b(system|software|technical|programming|computer)\b/)) {
+    domain = 'technical';
+  } else if (lowerSentence.match(/\b(friend|party|fun|weekend|movie|restaurant)\b/)) {
+    domain = 'social';
+  }
+  
+  return { tone, type, domain };
+}
+
 export async function translateSentence(
   sentence: string,
   sourceLang: string,
@@ -87,6 +130,40 @@ export async function translateSentence(
   }
 
   try {
+    // Analyze sentence context for better translation
+    const context = analyzeSentenceContext(sentence);
+    
+    // Create context-aware system prompt
+    const systemPrompt = `당신은 전문 언어 번역가이자 한국어 교육 전문가입니다. ${sourceLang} 문장을 자연스럽고 실용적인 한국어로 번역해주세요.
+
+**번역 원칙:**
+1. 직역보다는 자연스러운 한국어 표현을 우선시하세요
+2. 한국어 화자가 실제로 사용하는 표현으로 번역하세요
+3. 문맥과 상황에 맞는 적절한 존댓말/반말을 선택하세요
+4. 한국어의 어순과 문법 구조에 맞게 번역하세요
+5. 관용구나 숙어는 한국어의 해당 표현으로 의역하세요
+
+**문장 분석:**
+- 문장 유형: ${context.type === 'question' ? '질문문' : context.type === 'exclamation' ? '감탄문' : context.type === 'command' ? '명령문' : '평서문'}
+- 어조: ${context.tone === 'formal' ? '격식체' : context.tone === 'business' ? '비즈니스' : context.tone === 'academic' ? '학술적' : '일상적'}
+- 분야: ${context.domain === 'business' ? '비즈니스' : context.domain === 'academic' ? '학술' : context.domain === 'technical' ? '기술' : context.domain === 'social' ? '사교' : '일상'}
+
+**응답 형식:**
+JSON 형태로 응답하되, 다음 필드를 포함하세요:
+{
+  "translation": "자연스러운 한국어 번역",
+  "explanation": "번역 선택의 이유나 문화적 맥락 설명 (선택사항)",
+  "useful_expressions": ["핵심 표현1", "핵심 표현2", "핵심 표현3"]
+}
+
+**예시:**
+입력: "How's it going?"
+출력: {
+  "translation": "어떻게 지내?",
+  "explanation": "친근한 인사말로, '안녕하세요'보다 캐주얼한 표현입니다.",
+  "useful_expressions": ["어떻게 지내?", "잘 지내?", "요즘 어때?"]
+}`;
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -94,25 +171,18 @@ export async function translateSentence(
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4', // GPT-4 사용으로 품질 향상
         messages: [
           {
             role: 'system',
-            content: `You are a professional language translator. Translate the given ${sourceLang} sentence to ${targetLang}. 
-
-IMPORTANT: Respond with ONLY the translated text, no JSON formatting, no additional explanations, no quotes. Just provide the clean, natural translation.
-
-If you must provide additional information, format it as:
-Translation: [translated text]
-Explanation: [brief explanation if needed]
-Keywords: [key expressions separated by commas]`
+            content: systemPrompt
           },
           {
             role: 'user',
-            content: sentence
+            content: `다음 ${sourceLang} 문장을 번역해주세요: "${sentence}"`
           }
         ],
-        temperature: 0.3,
+        temperature: 0.3, // 일관성을 위해 낮은 temperature
         max_tokens: 1000,
       }),
     });
@@ -160,8 +230,8 @@ Keywords: [key expressions separated by commas]`
           translation = line.replace(/^translation:\s*/i, '').replace(/^["']|["']$/g, '').trim();
         } else if (line.toLowerCase().startsWith('explanation:')) {
           explanation = line.replace(/^explanation:\s*/i, '').replace(/^["']|["']$/g, '').trim();
-        } else if (line.toLowerCase().startsWith('keywords:')) {
-          const keywordText = line.replace(/^keywords:\s*/i, '').replace(/^["']|["']$/g, '').trim();
+        } else if (line.toLowerCase().startsWith('keywords:') || line.toLowerCase().startsWith('useful_expressions:')) {
+          const keywordText = line.replace(/^(keywords|useful_expressions):\s*/i, '').replace(/^["']|["']$/g, '').trim();
           keywords = keywordText.split(',').map(k => k.trim()).filter(k => k.length > 0);
         }
       }
