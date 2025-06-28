@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe } from 'lucide-react';
-import { translateSentence } from '../lib/openai';
+import { Plus, BookOpen, Check, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
 export function Learn() {
   const [sentence, setSentence] = useState('');
   const [translation, setTranslation] = useState('');
-  const [usefulExpressions, setUsefulExpressions] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -29,7 +27,6 @@ export function Learn() {
       setSelectedLanguage(event.detail);
       // Clear current translation when language changes
       setTranslation('');
-      setUsefulExpressions([]);
     };
 
     window.addEventListener('languageChanged', handleLanguageChange as EventListener);
@@ -43,12 +40,11 @@ export function Learn() {
     
     setLoading(true);
     try {
-      const result = await translateSentence(sentence, selectedLanguage, '한국어');
-      setTranslation(result.translation);
-      setUsefulExpressions(result.useful_expressions || []);
+      // 간단한 번역 처리 - OpenAI API 사용하지 않음
+      setTranslation('번역을 직접 입력해주세요.');
     } catch (error) {
       console.error('Translation failed:', error);
-      alert('번역에 실패했습니다. OpenAI API 키를 확인해주세요.');
+      alert('번역에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +60,7 @@ export function Learn() {
           user_id: user.id,
           english_text: sentence,
           korean_translation: translation,
-          keywords: usefulExpressions,
+          keywords: [], // 빈 배열로 설정
           difficulty: difficulty,
           target_language: selectedLanguage, // Save the selected language
         });
@@ -75,7 +71,6 @@ export function Learn() {
       setTimeout(() => {
         setSentence('');
         setTranslation('');
-        setUsefulExpressions([]);
         setDifficulty('medium');
         setSaved(false);
       }, 2000);
@@ -94,7 +89,7 @@ export function Learn() {
           </div>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">오늘의 학습</h1>
-        <p className="text-lg text-gray-600">새로운 문장을 입력하고 AI가 해석해드려요</p>
+        <p className="text-lg text-gray-600">새로운 문장을 입력하고 번역을 추가해보세요</p>
       </div>
 
       {/* Tips Section - Moved to top */}
@@ -111,7 +106,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>핵심 표현들을 따로 정리해서 복습하세요</p>
+            <p>정확한 번역을 직접 입력해서 학습 효과를 높이세요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -153,6 +148,23 @@ export function Learn() {
               </div>
             </div>
 
+            {/* Translation Input Section */}
+            <div>
+              <label htmlFor="translation" className="block text-sm font-medium text-gray-700 mb-3">
+                한국어 번역을 입력해주세요
+              </label>
+              <div className="relative">
+                <textarea
+                  id="translation"
+                  rows={3}
+                  value={translation}
+                  onChange={(e) => setTranslation(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+                  placeholder="한국어 번역을 직접 입력하세요"
+                />
+              </div>
+            </div>
+
             {/* Difficulty Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -179,27 +191,11 @@ export function Learn() {
               </div>
             </div>
 
-            {/* Translate Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={handleTranslate}
-                disabled={loading || !sentence.trim()}
-                className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {loading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <Sparkles className="w-5 h-5 mr-2" />
-                )}
-                {loading ? '번역중...' : 'AI 번역하기'}
-              </button>
-            </div>
-
             {/* Translation Result */}
-            {translation && (
+            {sentence && translation && (
               <div className="space-y-6 pt-6 border-t border-gray-200">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">번역 결과</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">입력된 내용</h3>
                   <div className="space-y-3">
                     <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
                       <p className="text-sm text-gray-600 mb-1">{selectedLanguage} 원문</p>
@@ -211,23 +207,6 @@ export function Learn() {
                     </div>
                   </div>
                 </div>
-
-                {/* Useful Expressions */}
-                {usefulExpressions.length > 0 && (
-                  <div className="bg-emerald-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-emerald-800 mb-3">
-                      핵심 표현 및 어휘
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {usefulExpressions.map((expression, index) => (
-                        <div key={index} className="flex items-start bg-white rounded-lg p-3 shadow-sm">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                          <p className="text-emerald-700 text-sm">{expression}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Save Button */}
                 <div className="flex justify-center pt-4">
