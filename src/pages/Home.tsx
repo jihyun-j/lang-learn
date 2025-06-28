@@ -32,7 +32,7 @@ export function Home() {
   }, []);
 
   const sentenceProgress = progress.sentenceGoal > 0 ? (progress.todaySentences / progress.sentenceGoal) * 100 : 0;
-  const reviewProgress = progress.reviewGoal > 0 ? (progress.todayReviews / progress.reviewGoal) * 100 : 0;
+  const reviewProgress = progress.totalReviewTarget > 0 ? (progress.todayReviews / progress.totalReviewTarget) * 100 : 0;
 
   return (
     <div className="space-y-8">
@@ -113,12 +113,14 @@ export function Home() {
                 </div>
                 <div className="ml-4">
                   <h4 className="text-lg font-semibold text-gray-900">복습하기</h4>
-                  <p className="text-sm text-gray-600">목표: {progress.reviewGoal}개</p>
+                  <p className="text-sm text-gray-600">
+                    {loading ? '목표: 계산중...' : `목표: ${progress.totalReviewTarget}개 (오늘+어제 학습한 문장)`}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-green-600">
-                  {loading ? '...' : `${progress.todayReviews}/${progress.reviewGoal}`}
+                  {loading ? '...' : `${progress.todayReviews}/${progress.totalReviewTarget}`}
                 </p>
                 <p className="text-xs text-gray-500">완료</p>
               </div>
@@ -129,18 +131,30 @@ export function Home() {
                 style={{ width: `${Math.min(reviewProgress, 100)}%` }}
               ></div>
             </div>
-            {reviewProgress >= 100 && (
+            {!loading && progress.totalReviewTarget === 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="flex items-center text-yellow-700">
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  <span className="text-sm">복습할 문장이 없습니다. 먼저 새 문장을 학습해보세요!</span>
+                </div>
+              </div>
+            )}
+            {reviewProgress >= 100 && progress.totalReviewTarget > 0 && (
               <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
                 <div className="flex items-center text-green-700">
                   <TrendingUp className="w-4 h-4 mr-2" />
-                  <span className="text-sm font-medium">🎉 오늘 목표 달성!</span>
+                  <span className="text-sm font-medium">🎉 오늘 복습 목표 달성!</span>
                 </div>
               </div>
             )}
             <div className="mt-4">
               <Link
                 to="/review"
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  progress.totalReviewTarget > 0
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 복습하러 가기
