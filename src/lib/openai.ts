@@ -14,6 +14,11 @@ export interface PronunciationFeedback {
   suggestions?: string[];
 }
 
+export interface KeywordExtractionResponse {
+  keywords: string[];
+  explanation?: string;
+}
+
 // Fallback translations for common phrases when API is unavailable
 const fallbackTranslations: Record<string, string> = {
   'hello': '안녕하세요',
@@ -178,6 +183,138 @@ Keywords: [key expressions separated by commas]`
       throw new Error(`번역 실패: ${error.message}`);
     }
     throw new Error('번역에 실패했습니다. 네트워크 연결을 확인해주세요.');
+  }
+}
+
+export async function extractKeywords(
+  sentence: string,
+  translation: string,
+  targetLang: string
+): Promise<KeywordExtractionResponse> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인해주세요.');
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a language learning expert. Analyze the given ${targetLang} sentence and extract useful keywords, phrases, and expressions that would be valuable for language learners.
+
+Return response in JSON format with these fields:
+- keywords: array of 3-8 useful expressions, phrases, or vocabulary words from the sentence
+- explanation: brief explanation of why these keywords are important (optional)
+
+Focus on:
+- Common phrases and idioms
+- Important vocabulary words
+- Grammar patterns
+- Useful expressions for daily conversation
+- Collocations and word combinations
+
+Provide keywords in ${targetLang} language.`
+          },
+          {
+            role: 'user',
+            content: `${targetLang} sentence: "${sentence}"\nKorean translation: "${translation}"`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Handle quota exceeded error specifically
+      if (errorData.error?.code === 'insufficient_quota' || 
+          errorData.error?.message?.includes('exceeded your current quota')) {
+        console.warn('OpenAI API quota exceeded, providing basic keywords');
+        
+        // Extract basic keywords from the sentence (fallback)
+        const basicKeywords = sentence
+          .toLowerCase()
+          .split(/[^\w\s]/)
+          .join(' ')
+          .split(/\s+/)
+          .filter(word => word.length > 2)
+          .slice(0, 5);
+        
+        return {
+          keywords: basicKeywords,
+          explanation: "키워드 추출 서비스의 사용량이 초과되어 기본 키워드를 제공합니다."
+        };
+      }
+      
+      throw new Error(`OpenAI API 오류: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+      const parsed = JSON.parse(content);
+      return {
+        keywords: parsed.keywords || [],
+        explanation: parsed.explanation
+      };
+    } catch (parseError) {
+      // If JSON parsing fails, try to extract keywords from text
+      const lines = content.split('\n').filter(line => line.trim());
+      const keywords: string[] = [];
+      let explanation = '';
+      
+      for (const line of lines) {
+        if (line.toLowerCase().includes('keywords') || line.includes('•') || line.includes('-')) {
+          const keywordMatch = line.replace(/^.*?[:•-]\s*/, '').trim();
+          if (keywordMatch && !keywordMatch.toLowerCase().includes('keywords')) {
+            keywords.push(keywordMatch);
+          }
+        } else if (line.toLowerCase().includes('explanation')) {
+          explanation = line.replace(/^.*?explanation:\s*/i, '').trim();
+        }
+      }
+      
+      return {
+        keywords: keywords.slice(0, 8),
+        explanation: explanation || undefined
+      };
+    }
+  } catch (error) {
+    console.error('Keyword extraction error:', error);
+    
+    // Provide fallback keywords for quota/network errors
+    if (error instanceof Error && 
+        (error.message.includes('quota') || error.message.includes('network') || error.message.includes('fetch'))) {
+      console.warn('Using fallback keyword extraction due to API unavailability');
+      
+      // Extract basic keywords from the sentence (fallback)
+      const basicKeywords = sentence
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 2)
+        .slice(0, 5);
+      
+      return {
+        keywords: basicKeywords,
+        explanation: "키워드 추출 서비스에 일시적인 문제가 있어 기본 키워드를 제공합니다."
+      };
+    }
+    
+    if (error instanceof Error) {
+      throw new Error(`키워드 추출 실패: ${error.message}`);
+    }
+    throw new Error('키워드 추출에 실패했습니다. 네트워크 연결을 확인해주세요.');
   }
 }
 

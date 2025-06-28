@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, Tag, Star } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, Tag, Star, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Sentence } from '../types';
 import { format } from 'date-fns';
+import { extractKeywords } from '../lib/openai';
 
 export function Sentences() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
@@ -14,6 +15,7 @@ export function Sentences() {
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [totalCount, setTotalCount] = useState(0);
   const [expandedSentence, setExpandedSentence] = useState<string | null>(null);
+  const [extractingKeywords, setExtractingKeywords] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Get current selected language from localStorage
@@ -98,6 +100,94 @@ export function Sentences() {
     }
   };
 
+  const extractKeywordsForSentence = async (sentence: Sentence) => {
+    if (!sentence.english_text || !sentence.korean_translation) return;
+
+    setExtractingKeywords(sentence.id);
+    try {
+      const result = await extractKeywords(
+        sentence.english_text,
+        sentence.korean_translation,
+        sentence.target_language
+      );
+
+      // Update the sentence in database
+      const { error } = await supabase
+        .from('sentences')
+        .update({ keywords: result.keywords })
+        .eq('id', sentence.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setSentences(prev => prev.map(s => 
+        s.id === sentence.id 
+          ? { ...s, keywords: result.keywords }
+          : s
+      ));
+
+      alert(`${result.keywords.length}개의 키워드가 추출되었습니다!`);
+    } catch (error) {
+      console.error('Failed to extract keywords:', error);
+      alert('키워드 추출에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setExtractingKeywords(null);
+    }
+  };
+
+  const extractKeywordsForAll = async () => {
+    const sentencesWithoutKeywords = sentences.filter(s => !s.keywords || s.keywords.length === 0);
+    
+    if (sentencesWithoutKeywords.length === 0) {
+      alert('모든 문장에 이미 키워드가 있습니다.');
+      return;
+    }
+
+    if (!confirm(`${sentencesWithoutKeywords.length}개 문장의 키워드를 추출하시겠습니까? 시간이 다소 걸릴 수 있습니다.`)) {
+      return;
+    }
+
+    setExtractingKeywords('all');
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const sentence of sentencesWithoutKeywords) {
+      try {
+        const result = await extractKeywords(
+          sentence.english_text,
+          sentence.korean_translation,
+          sentence.target_language
+        );
+
+        // Update the sentence in database
+        const { error } = await supabase
+          .from('sentences')
+          .update({ keywords: result.keywords })
+          .eq('id', sentence.id);
+
+        if (error) throw error;
+
+        // Update local state
+        setSentences(prev => prev.map(s => 
+          s.id === sentence.id 
+            ? { ...s, keywords: result.keywords }
+            : s
+        ));
+
+        successCount++;
+        
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to extract keywords for sentence ${sentence.id}:`, error);
+        failCount++;
+      }
+    }
+
+    setExtractingKeywords(null);
+    alert(`키워드 추출 완료!\n성공: ${successCount}개\n실패: ${failCount}개`);
+  };
+
   const playAudio = (text: string, lang: string = 'en-US') => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = selectedLanguage === '영어' ? 'en-US' : 
@@ -164,13 +254,35 @@ export function Sentences() {
                   </div>
                 </div>
 
-                {/* Keywords Preview */}
-                {sentence.keywords && sentence.keywords.length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex items-center mb-2">
+                {/* Keywords Section */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
                       <Tag className="w-4 h-4 text-blue-600 mr-2" />
                       <span className="text-sm font-medium text-blue-600">핵심 표현</span>
                     </div>
+                    {(!sentence.keywords || sentence.keywords.length === 0) && (
+                      <button
+                        onClick={() => extractKeywordsForSentence(sentence)}
+                        disabled={extractingKeywords === sentence.id}
+                        className="flex items-center px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors disabled:opacity-50"
+                      >
+                        {extractingKeywords === sentence.id ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                            추출중...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            AI 키워드 추출
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {sentence.keywords && sentence.keywords.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {sentence.keywords.slice(0, expandedSentence === sentence.id ? undefined : 3).map((keyword, idx) => (
                         <span
@@ -190,8 +302,12 @@ export function Sentences() {
                         </button>
                       )}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-sm text-gray-500 italic">
+                      키워드가 없습니다. AI 키워드 추출 버튼을 눌러보세요.
+                    </div>
+                  )}
+                </div>
 
                 {/* Expanded Keywords */}
                 {expandedSentence === sentence.id && sentence.keywords && sentence.keywords.length > 3 && (
@@ -299,6 +415,8 @@ export function Sentences() {
     );
   }
 
+  const sentencesWithoutKeywords = sentences.filter(s => !s.keywords || s.keywords.length === 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -315,16 +433,69 @@ export function Sentences() {
             {selectedLanguage}로 총 {totalCount}개의 문장을 학습하고 있습니다.
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex space-x-3">
+          {sentencesWithoutKeywords.length > 0 && (
+            <button
+              onClick={extractKeywordsForAll}
+              disabled={extractingKeywords === 'all'}
+              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+            >
+              {extractingKeywords === 'all' ? (
+                <>
+                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                  키워드 추출중...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  전체 키워드 추출 ({sentencesWithoutKeywords.length}개)
+                </>
+              )}
+            </button>
+          )}
           <button
             onClick={startQuiz}
-            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
           >
             <Shuffle className="w-5 h-5 mr-2" />
             퀴즈
           </button>
         </div>
       </div>
+
+      {/* AI Keyword Extraction Info */}
+      {sentencesWithoutKeywords.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+          <div className="flex items-start">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Sparkles className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="ml-4 flex-1">
+              <h3 className="text-lg font-semibold text-purple-900 mb-2">
+                🤖 AI 키워드 추출 기능
+              </h3>
+              <p className="text-purple-700 mb-3">
+                AI가 등록된 문장에서 유용한 키워드와 표현을 자동으로 추출해드립니다. 
+                각 문장별로 개별 추출하거나 전체 문장을 한번에 처리할 수 있습니다.
+              </p>
+              <div className="flex flex-wrap gap-2 text-sm text-purple-600">
+                <span className="flex items-center">
+                  <Star className="w-4 h-4 mr-1" />
+                  핵심 어휘 추출
+                </span>
+                <span className="flex items-center">
+                  <Tag className="w-4 h-4 mr-1" />
+                  유용한 표현 식별
+                </span>
+                <span className="flex items-center">
+                  <BookOpen className="w-4 h-4 mr-1" />
+                  학습 효과 향상
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
