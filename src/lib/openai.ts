@@ -6,6 +6,13 @@ export interface TranslationResponse {
   useful_expressions?: string[];
 }
 
+export interface SpeechRecognitionResult {
+  transcription: string;
+  isCorrect: boolean;
+  similarity: number;
+  feedback: string;
+}
+
 // Fallback translations for common phrases when API is unavailable
 const fallbackTranslations: Record<string, string> = {
   'hello': '안녕하세요',
@@ -171,6 +178,188 @@ Keywords: [key expressions separated by commas]`
     }
     throw new Error('번역에 실패했습니다. 네트워크 연결을 확인해주세요.');
   }
+}
+
+// OpenAI Whisper를 사용한 음성 인식
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인해주세요.');
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'en'); // 영어로 설정, 필요시 동적으로 변경 가능
+
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Handle quota exceeded error specifically
+      if (errorData.error?.code === 'insufficient_quota' || 
+          errorData.error?.message?.includes('exceeded your current quota')) {
+        console.warn('OpenAI API quota exceeded for transcription');
+        throw new Error('음성 인식 서비스의 사용량이 초과되었습니다. API 크레딧을 충전해주세요.');
+      }
+      
+      throw new Error(`OpenAI Whisper API 오류: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.text || '';
+  } catch (error) {
+    console.error('Transcription error:', error);
+    
+    if (error instanceof Error) {
+      throw new Error(`음성 인식 실패: ${error.message}`);
+    }
+    throw new Error('음성 인식에 실패했습니다. 네트워크 연결을 확인해주세요.');
+  }
+}
+
+// 문장 유사도 비교 및 정답 판별
+export async function compareSentences(
+  originalSentence: string,
+  spokenText: string
+): Promise<SpeechRecognitionResult> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인해주세요.');
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a language learning assistant. Compare the original sentence with what the user said and determine if they match semantically. 
+
+Return response in JSON format with these fields:
+- transcription: the user's spoken text (cleaned up)
+- isCorrect: boolean - true if the meaning is substantially the same (allow for minor pronunciation differences)
+- similarity: number from 0-100 representing how similar the sentences are
+- feedback: encouraging feedback in Korean
+
+Be lenient with minor pronunciation errors, contractions, and small grammatical differences. Focus on whether the core meaning is preserved.`
+          },
+          {
+            role: 'user',
+            content: `Original sentence: "${originalSentence}"\nUser's spoken text: "${spokenText}"`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Handle quota exceeded error specifically
+      if (errorData.error?.code === 'insufficient_quota' || 
+          errorData.error?.message?.includes('exceeded your current quota')) {
+        console.warn('OpenAI API quota exceeded for sentence comparison');
+        
+        // Simple fallback comparison
+        const similarity = calculateSimpleSimilarity(originalSentence, spokenText);
+        const isCorrect = similarity > 70;
+        
+        return {
+          transcription: spokenText,
+          isCorrect,
+          similarity,
+          feedback: isCorrect 
+            ? "좋습니다! 의미가 잘 전달되었어요." 
+            : "조금 더 정확하게 발음해보세요. 계속 연습하면 향상될 거예요!"
+        };
+      }
+      
+      throw new Error(`OpenAI API 오류: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+      const parsed = JSON.parse(content);
+      return {
+        transcription: parsed.transcription || spokenText,
+        isCorrect: parsed.isCorrect || false,
+        similarity: parsed.similarity || 0,
+        feedback: parsed.feedback || "좋은 시도입니다! 계속 연습하시면 더 나아질 거예요."
+      };
+    } catch (parseError) {
+      // If JSON parsing fails, use simple comparison
+      const similarity = calculateSimpleSimilarity(originalSentence, spokenText);
+      const isCorrect = similarity > 70;
+      
+      return {
+        transcription: spokenText,
+        isCorrect,
+        similarity,
+        feedback: isCorrect 
+          ? "좋습니다! 의미가 잘 전달되었어요." 
+          : "조금 더 정확하게 발음해보세요. 계속 연습하면 향상될 거예요!"
+      };
+    }
+  } catch (error) {
+    console.error('Sentence comparison error:', error);
+    
+    // Provide fallback comparison for quota/network errors
+    if (error instanceof Error && 
+        (error.message.includes('quota') || error.message.includes('network') || error.message.includes('fetch'))) {
+      console.warn('Using fallback sentence comparison due to API unavailability');
+      
+      const similarity = calculateSimpleSimilarity(originalSentence, spokenText);
+      const isCorrect = similarity > 70;
+      
+      return {
+        transcription: spokenText,
+        isCorrect,
+        similarity,
+        feedback: isCorrect 
+          ? "좋습니다! 의미가 잘 전달되었어요." 
+          : "조금 더 정확하게 발음해보세요. 계속 연습하면 향상될 거예요!"
+      };
+    }
+    
+    if (error instanceof Error) {
+      throw new Error(`문장 비교 실패: ${error.message}`);
+    }
+    throw new Error('문장 비교에 실패했습니다. 네트워크 연결을 확인해주세요.');
+  }
+}
+
+// Simple similarity calculation fallback
+function calculateSimpleSimilarity(text1: string, text2: string): number {
+  const normalize = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, '').trim();
+  
+  const normalized1 = normalize(text1);
+  const normalized2 = normalize(text2);
+  
+  if (normalized1 === normalized2) return 100;
+  
+  const words1 = normalized1.split(/\s+/);
+  const words2 = normalized2.split(/\s+/);
+  
+  const commonWords = words1.filter(word => words2.includes(word));
+  const totalWords = Math.max(words1.length, words2.length);
+  
+  return Math.round((commonWords.length / totalWords) * 100);
 }
 
 // Helper function to generate example sentences
