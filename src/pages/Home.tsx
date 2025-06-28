@@ -12,10 +12,21 @@ interface LanguageStats {
   streakDays: number;
 }
 
+interface TimeBasedStats {
+  newSentences: number;
+  reviews: number;
+  accuracy: number;
+  studyTime: number;
+  completedGoals: number;
+  totalGoals: number;
+}
+
 export function Home() {
   const [languageStats, setLanguageStats] = useState<LanguageStats[]>([]);
   const [currentStats, setCurrentStats] = useState<LanguageStats | null>(null);
+  const [timeBasedStats, setTimeBasedStats] = useState<TimeBasedStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const { user } = useAuth();
 
   // Get current selected language from localStorage
@@ -29,8 +40,9 @@ export function Home() {
   useEffect(() => {
     if (user) {
       loadLanguageStats();
+      loadTimeBasedStats();
     }
-  }, [user]);
+  }, [user, selectedTimePeriod]);
 
   useEffect(() => {
     if (selectedLanguage && languageStats.length > 0) {
@@ -119,6 +131,126 @@ export function Home() {
     }
   };
 
+  const loadTimeBasedStats = async () => {
+    if (!user) return;
+
+    try {
+      // Get current date ranges based on selected period
+      const now = new Date();
+      let startDate: Date;
+      let endDate = now;
+
+      switch (selectedTimePeriod) {
+        case 'daily':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'weekly':
+          const dayOfWeek = now.getDay();
+          startDate = new Date(now.getTime() - (dayOfWeek * 24 * 60 * 60 * 1000));
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'monthly':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      }
+
+      // Load sentences for the period
+      const { data: sentences, error: sentencesError } = await supabase
+        .from('sentences')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('target_language', selectedLanguage)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
+
+      if (sentencesError) throw sentencesError;
+
+      // Load review sessions for the period
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('review_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
+
+      if (reviewsError) throw reviewsError;
+
+      // Calculate time-based stats
+      const newSentences = sentences?.length || 0;
+      const reviewCount = reviews?.length || 0;
+      const accuracy = reviews && reviews.length > 0 
+        ? Math.round(reviews.reduce((acc, r) => acc + r.overall_score, 0) / reviews.length)
+        : 0;
+
+      // Mock data for study time and goals based on period
+      let studyTime: number;
+      let completedGoals: number;
+      let totalGoals: number;
+
+      switch (selectedTimePeriod) {
+        case 'daily':
+          studyTime = Math.floor(Math.random() * 60) + 30; // 30-90 minutes
+          completedGoals = Math.min(newSentences + reviewCount, 5);
+          totalGoals = 5;
+          break;
+        case 'weekly':
+          studyTime = Math.floor(Math.random() * 300) + 200; // 200-500 minutes
+          completedGoals = Math.min(newSentences + reviewCount, 25);
+          totalGoals = 25;
+          break;
+        case 'monthly':
+          studyTime = Math.floor(Math.random() * 1200) + 800; // 800-2000 minutes
+          completedGoals = Math.min(newSentences + reviewCount, 100);
+          totalGoals = 100;
+          break;
+        default:
+          studyTime = 45;
+          completedGoals = 3;
+          totalGoals = 5;
+      }
+
+      setTimeBasedStats({
+        newSentences,
+        reviews: reviewCount,
+        accuracy,
+        studyTime,
+        completedGoals,
+        totalGoals,
+      });
+    } catch (error) {
+      console.error('Failed to load time-based stats:', error);
+      // Set fallback data
+      setTimeBasedStats({
+        newSentences: 0,
+        reviews: 0,
+        accuracy: 0,
+        studyTime: 0,
+        completedGoals: 0,
+        totalGoals: selectedTimePeriod === 'daily' ? 5 : selectedTimePeriod === 'weekly' ? 25 : 100,
+      });
+    }
+  };
+
+  const getTimePeriodLabel = () => {
+    switch (selectedTimePeriod) {
+      case 'daily': return '일간';
+      case 'weekly': return '주간';
+      case 'monthly': return '월간';
+      default: return '일간';
+    }
+  };
+
+  const getTimePeriodGoalLabel = () => {
+    switch (selectedTimePeriod) {
+      case 'daily': return '오늘의 목표';
+      case 'weekly': return '이번 주 목표';
+      case 'monthly': return '이번 달 목표';
+      default: return '오늘의 목표';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -139,87 +271,11 @@ export function Home() {
         </p>
       </div>
 
-      {/* Current Language Display */}
-      {currentStats && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6">
-          <div className="flex items-center justify-center">
-            <Globe className="w-6 h-6 text-blue-600 mr-3" />
-            <h2 className="text-2xl font-bold text-gray-900">
-              현재 학습 언어: <span className="text-blue-600">{currentStats.language}</span>
-            </h2>
-          </div>
-          <p className="text-center text-gray-600 mt-2">
-            사이드바에서 다른 언어로 변경할 수 있습니다
-          </p>
-        </div>
-      )}
-
-      {/* Stats Overview */}
-      {currentStats && (
-        <div>
-          <div className="flex items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {currentStats.language} 학습 현황
-            </h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-              <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-full">
-                  <BookOpen className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">학습한 문장</p>
-                  <p className="text-3xl font-bold text-gray-900">{currentStats.totalSentences}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-              <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">오늘 복습</p>
-                  <p className="text-3xl font-bold text-gray-900">{currentStats.todayReviews}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
-              <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-full">
-                  <Target className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">평균 정확도</p>
-                  <p className="text-3xl font-bold text-gray-900">{currentStats.averageAccuracy}%</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-              <div className="flex items-center">
-                <div className="p-3 bg-purple-100 rounded-full">
-                  <Calendar className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">연속 학습</p>
-                  <p className="text-3xl font-bold text-gray-900">{currentStats.streakDays}일</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Today's Goal */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            {selectedLanguage ? `${selectedLanguage} 오늘의 목표` : '오늘의 목표'}
+            {selectedLanguage ? `${selectedLanguage} ${getTimePeriodGoalLabel()}` : getTimePeriodGoalLabel()}
           </h3>
           <p className="text-gray-600">매일 꾸준히 학습하여 목표를 달성해보세요</p>
         </div>
@@ -234,16 +290,25 @@ export function Home() {
                 </div>
                 <div className="ml-4">
                   <h4 className="text-lg font-semibold text-gray-900">새 문장 학습</h4>
-                  <p className="text-sm text-gray-600">목표: 3개</p>
+                  <p className="text-sm text-gray-600">
+                    목표: {selectedTimePeriod === 'daily' ? '3개' : selectedTimePeriod === 'weekly' ? '15개' : '50개'}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-blue-600">1/3</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {timeBasedStats?.newSentences || 0}/{selectedTimePeriod === 'daily' ? '3' : selectedTimePeriod === 'weekly' ? '15' : '50'}
+                </p>
                 <p className="text-xs text-gray-500">완료</p>
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: '33%' }}></div>
+              <div 
+                className="bg-blue-500 h-2 rounded-full" 
+                style={{ 
+                  width: `${Math.min(100, ((timeBasedStats?.newSentences || 0) / (selectedTimePeriod === 'daily' ? 3 : selectedTimePeriod === 'weekly' ? 15 : 50)) * 100)}%` 
+                }}
+              ></div>
             </div>
             <div className="mt-4">
               <Link
@@ -265,16 +330,25 @@ export function Home() {
                 </div>
                 <div className="ml-4">
                   <h4 className="text-lg font-semibold text-gray-900">복습하기</h4>
-                  <p className="text-sm text-gray-600">목표: 5개</p>
+                  <p className="text-sm text-gray-600">
+                    목표: {selectedTimePeriod === 'daily' ? '5개' : selectedTimePeriod === 'weekly' ? '25개' : '80개'}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-green-600">3/5</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {timeBasedStats?.reviews || 0}/{selectedTimePeriod === 'daily' ? '5' : selectedTimePeriod === 'weekly' ? '25' : '80'}
+                </p>
                 <p className="text-xs text-gray-500">완료</p>
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-500 h-2 rounded-full" style={{ width: '60%' }}></div>
+              <div 
+                className="bg-green-500 h-2 rounded-full" 
+                style={{ 
+                  width: `${Math.min(100, ((timeBasedStats?.reviews || 0) / (selectedTimePeriod === 'daily' ? 5 : selectedTimePeriod === 'weekly' ? 25 : 80)) * 100)}%` 
+                }}
+              ></div>
             </div>
             <div className="mt-4">
               <Link
@@ -319,6 +393,128 @@ export function Home() {
           </div>
         </div>
       </div>
+
+      {/* Learning Statistics with Time Period Tabs */}
+      {currentStats && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {currentStats.language} 학습 현황
+            </h2>
+            
+            {/* Time Period Tabs */}
+            <div className="flex rounded-lg bg-gray-100 p-1">
+              {(['daily', 'weekly', 'monthly'] as const).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setSelectedTimePeriod(period)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    selectedTimePeriod === period
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {period === 'daily' ? '일간' : period === 'weekly' ? '주간' : '월간'}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+              <div className="flex items-center">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <BookOpen className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    {selectedTimePeriod === 'daily' ? '오늘 학습한 문장' : 
+                     selectedTimePeriod === 'weekly' ? '이번 주 학습한 문장' : 
+                     '이번 달 학습한 문장'}
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900">{timeBasedStats?.newSentences || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+              <div className="flex items-center">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <TrendingUp className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    {getTimePeriodLabel()} 복습 횟수
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900">{timeBasedStats?.reviews || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
+              <div className="flex items-center">
+                <div className="p-3 bg-yellow-100 rounded-full">
+                  <Target className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    {getTimePeriodLabel()} 평균 정확도
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900">{timeBasedStats?.accuracy || 0}%</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+              <div className="flex items-center">
+                <div className="p-3 bg-purple-100 rounded-full">
+                  <Calendar className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    {getTimePeriodLabel()} 학습 시간
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {timeBasedStats ? Math.floor(timeBasedStats.studyTime / 60) : 0}시간
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Summary */}
+          <div className="mt-6 bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {getTimePeriodLabel()} 진도 요약
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <BookOpen className="w-8 h-8 text-blue-600" />
+                </div>
+                <p className="text-2xl font-bold text-blue-600">{timeBasedStats?.newSentences || 0}</p>
+                <p className="text-sm text-gray-600">새로 학습한 문장</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <RotateCcw className="w-8 h-8 text-green-600" />
+                </div>
+                <p className="text-2xl font-bold text-green-600">{timeBasedStats?.reviews || 0}</p>
+                <p className="text-sm text-gray-600">복습 완료</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Target className="w-8 h-8 text-purple-600" />
+                </div>
+                <p className="text-2xl font-bold text-purple-600">
+                  {timeBasedStats ? Math.round((timeBasedStats.completedGoals / timeBasedStats.totalGoals) * 100) : 0}%
+                </p>
+                <p className="text-sm text-gray-600">목표 달성률</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
