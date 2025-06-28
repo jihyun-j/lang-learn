@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, Tag, Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Sentence } from '../types';
@@ -13,6 +13,7 @@ export function Sentences() {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [totalCount, setTotalCount] = useState(0);
+  const [expandedSentence, setExpandedSentence] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Get current selected language from localStorage
@@ -99,7 +100,12 @@ export function Sentences() {
 
   const playAudio = (text: string, lang: string = 'en-US') => {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
+    utterance.lang = selectedLanguage === '영어' ? 'en-US' : 
+                    selectedLanguage === '일본어' ? 'ja-JP' :
+                    selectedLanguage === '중국어' ? 'zh-CN' :
+                    selectedLanguage === '프랑스어' ? 'fr-FR' :
+                    selectedLanguage === '독일어' ? 'de-DE' :
+                    selectedLanguage === '스페인어' ? 'es-ES' : 'en-US';
     speechSynthesis.speak(utterance);
   };
 
@@ -126,79 +132,108 @@ export function Sentences() {
     }
   };
 
+  const toggleExpanded = (sentenceId: string) => {
+    setExpandedSentence(expandedSentence === sentenceId ? null : sentenceId);
+  };
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const ListView = () => (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      {/* Table Header */}
-      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
-          <div className="col-span-4">문장</div>
-          <div className="col-span-3">번역</div>
-          <div className="col-span-1">난이도</div>
-          <div className="col-span-2">등록일</div>
-          <div className="col-span-2">작업</div>
-        </div>
-      </div>
-
-      {/* Table Body */}
-      <div className="divide-y divide-gray-200">
-        {sentences.map((sentence) => (
-          <div key={sentence.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-            <div className="grid grid-cols-12 gap-4 text-sm">
-              <div className="col-span-4">
-                <div className="flex items-start space-x-2">
+    <div className="space-y-4">
+      {sentences.map((sentence) => (
+        <div key={sentence.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+          {/* Main Content */}
+          <div className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                {/* Original Text with Audio */}
+                <div className="flex items-start space-x-3 mb-3">
                   <button
                     onClick={() => playAudio(sentence.english_text)}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-5 h-5" />
                   </button>
-                  <div>
-                    <p className="font-medium text-gray-900">{sentence.english_text}</p>
-                    {sentence.keywords && sentence.keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {sentence.keywords.slice(0, 3).map((keyword, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
-                          >
-                            {keyword.length > 20 ? `${keyword.substring(0, 20)}...` : keyword}
-                          </span>
-                        ))}
-                        {sentence.keywords.length > 3 && (
-                          <span className="text-xs text-gray-500">+{sentence.keywords.length - 3}</span>
-                        )}
-                      </div>
-                    )}
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold text-gray-900 leading-relaxed">
+                      {sentence.english_text}
+                    </p>
+                    <p className="text-gray-600 mt-1">
+                      {sentence.korean_translation}
+                    </p>
                   </div>
                 </div>
+
+                {/* Keywords Preview */}
+                {sentence.keywords && sentence.keywords.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center mb-2">
+                      <Tag className="w-4 h-4 text-blue-600 mr-2" />
+                      <span className="text-sm font-medium text-blue-600">핵심 표현</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sentence.keywords.slice(0, expandedSentence === sentence.id ? undefined : 3).map((keyword, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium"
+                        >
+                          <Star className="w-3 h-3 mr-1" />
+                          {keyword}
+                        </span>
+                      ))}
+                      {sentence.keywords.length > 3 && expandedSentence !== sentence.id && (
+                        <button
+                          onClick={() => toggleExpanded(sentence.id)}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                        >
+                          +{sentence.keywords.length - 3}개 더보기
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Expanded Keywords */}
+                {expandedSentence === sentence.id && sentence.keywords && sentence.keywords.length > 3 && (
+                  <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3">모든 핵심 표현</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {sentence.keywords.map((keyword, idx) => (
+                        <div key={idx} className="flex items-start bg-white rounded-lg p-3 shadow-sm">
+                          <Star className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                          <span className="text-sm text-blue-800 font-medium">{keyword}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => toggleExpanded(sentence.id)}
+                      className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      접기
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="col-span-3">
-                <p className="text-gray-700">{sentence.korean_translation}</p>
-              </div>
-              <div className="col-span-1">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
+
+              {/* Right Side Info */}
+              <div className="flex flex-col items-end space-y-3 ml-6">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
                   {getDifficultyLabel(sentence.difficulty)}
                 </span>
-              </div>
-              <div className="col-span-2">
-                <p className="text-gray-600">
+                <p className="text-sm text-gray-500">
                   {format(new Date(sentence.created_at), 'yyyy.MM.dd')}
                 </p>
-              </div>
-              <div className="col-span-2">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => alert('편집 기능 준비중...')}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="편집"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => deleteSentence(sentence.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="삭제"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -207,8 +242,32 @@ export function Sentences() {
               </div>
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Footer with Stats */}
+          <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <div className="flex items-center space-x-4">
+                <span className="flex items-center">
+                  <Tag className="w-4 h-4 mr-1" />
+                  {sentence.keywords?.length || 0}개 표현
+                </span>
+                <span className="flex items-center">
+                  <Globe className="w-4 h-4 mr-1" />
+                  {sentence.target_language}
+                </span>
+              </div>
+              {sentence.keywords && sentence.keywords.length > 3 && (
+                <button
+                  onClick={() => toggleExpanded(sentence.id)}
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {expandedSentence === sentence.id ? '접기' : '자세히 보기'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
 
       {sentences.length === 0 && !loading && (
         <div className="text-center py-12">

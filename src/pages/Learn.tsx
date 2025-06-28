@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Tag, Star } from 'lucide-react';
 import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 export function Learn() {
   const [sentence, setSentence] = useState('');
   const [translation, setTranslation] = useState('');
+  const [explanation, setExplanation] = useState('');
   const [usefulExpressions, setUsefulExpressions] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,7 @@ export function Learn() {
       setSelectedLanguage(event.detail);
       // Clear current translation when language changes
       setTranslation('');
+      setExplanation('');
       setUsefulExpressions([]);
     };
 
@@ -45,6 +47,7 @@ export function Learn() {
     try {
       const result = await translateSentence(sentence, selectedLanguage, '한국어');
       setTranslation(result.translation);
+      setExplanation(result.explanation || '');
       setUsefulExpressions(result.useful_expressions || []);
     } catch (error) {
       console.error('Translation failed:', error);
@@ -75,6 +78,7 @@ export function Learn() {
       setTimeout(() => {
         setSentence('');
         setTranslation('');
+        setExplanation('');
         setUsefulExpressions([]);
         setDifficulty('medium');
         setSaved(false);
@@ -90,7 +94,8 @@ export function Learn() {
     localStorage.setItem('selectedLanguage', language);
     // Clear current translation when language changes
     setTranslation('');
-    setUsefulExpressions('');
+    setExplanation('');
+    setUsefulExpressions([]);
   };
 
   return (
@@ -219,19 +224,39 @@ export function Learn() {
                   </div>
                 </div>
 
+                {/* Explanation */}
+                {explanation && (
+                  <div className="bg-amber-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-3">
+                      📝 상세 설명
+                    </h3>
+                    <p className="text-amber-700 leading-relaxed">{explanation}</p>
+                  </div>
+                )}
+
                 {/* Useful Expressions */}
                 {usefulExpressions.length > 0 && (
                   <div className="bg-emerald-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-emerald-800 mb-3">
-                      핵심 표현 및 어휘
-                    </h3>
+                    <div className="flex items-center mb-4">
+                      <Tag className="w-5 h-5 text-emerald-600 mr-2" />
+                      <h3 className="text-lg font-semibold text-emerald-800">
+                        핵심 표현 및 어휘
+                      </h3>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {usefulExpressions.map((expression, index) => (
-                        <div key={index} className="flex items-start bg-white rounded-lg p-3 shadow-sm">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                          <p className="text-emerald-700 text-sm">{expression}</p>
+                        <div key={index} className="flex items-start bg-white rounded-lg p-4 shadow-sm border border-emerald-200">
+                          <Star className="w-4 h-4 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
+                          <div>
+                            <p className="text-emerald-800 font-medium text-sm leading-relaxed">{expression}</p>
+                          </div>
                         </div>
                       ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-emerald-100 rounded-lg">
+                      <p className="text-xs text-emerald-700">
+                        💡 이 표현들은 문장과 함께 저장되어 나중에 복습할 수 있습니다.
+                      </p>
                     </div>
                   </div>
                 )}
