@@ -14,6 +14,7 @@ export function Sentences() {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [totalCount, setTotalCount] = useState(0);
+  const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
 
@@ -78,78 +79,135 @@ export function Sentences() {
     }
   };
 
-  // 완전히 새로운 고급 TTS 시스템
-  const playAudio = async (text: string) => {
+  // 🎵 완전히 새로운 고급 TTS 시스템 - 프랑스어 특화
+  const playAudio = async (text: string, sentenceId?: string) => {
     if (!text.trim()) return;
+
+    // 이미 재생 중인 경우 중지
+    if (isPlaying === sentenceId) {
+      speechSynthesis.cancel();
+      setIsPlaying(null);
+      return;
+    }
+
+    // 다른 음성 중지
+    speechSynthesis.cancel();
+    setIsPlaying(sentenceId || null);
 
     console.log(`🎵 Playing audio for: "${text}" in ${selectedLanguage}`);
 
-    // 최신 언어 매핑 (2024년 기준)
+    // 🌍 최신 언어 매핑 (2024년 기준) - 프랑스어 우선순위 최적화
     const languageMap: Record<string, string[]> = {
       '영어': ['en-US', 'en-GB', 'en-AU', 'en-CA'],
-      '프랑스어': ['fr-FR', 'fr-CA', 'fr-BE', 'fr-CH'],
-      '독일어': ['de-DE', 'de-AT', 'de-CH'],
-      '스페인어': ['es-ES', 'es-MX', 'es-AR', 'es-US'],
-      '이탈리아어': ['it-IT', 'it-CH'],
-      '일본어': ['ja-JP'],
-      '중국어': ['zh-CN', 'zh-TW', 'zh-HK'],
-      '러시아어': ['ru-RU'],
-      '포르투갈어': ['pt-BR', 'pt-PT'],
-      '아랍어': ['ar-SA', 'ar-EG', 'ar-AE'],
-      '네덜란드어': ['nl-NL', 'nl-BE'],
-      '스웨덴어': ['sv-SE'],
-      '노르웨이어': ['no-NO', 'nb-NO'],
-      '덴마크어': ['da-DK'],
-      '핀란드어': ['fi-FI'],
-      '폴란드어': ['pl-PL'],
-      '체코어': ['cs-CZ'],
-      '헝가리어': ['hu-HU'],
-      '그리스어': ['el-GR'],
-      '터키어': ['tr-TR'],
-      '히브리어': ['he-IL'],
-      '힌디어': ['hi-IN'],
-      '태국어': ['th-TH'],
-      '베트남어': ['vi-VN'],
-      '인도네시아어': ['id-ID'],
-      '말레이어': ['ms-MY'],
-      '한국어': ['ko-KR']
+      '프랑스어': ['fr-FR', 'fr-CA', 'fr-BE', 'fr-CH', 'fr'], // 프랑스어 우선순위 강화
+      '독일어': ['de-DE', 'de-AT', 'de-CH', 'de'],
+      '스페인어': ['es-ES', 'es-MX', 'es-AR', 'es-US', 'es'],
+      '이탈리아어': ['it-IT', 'it-CH', 'it'],
+      '일본어': ['ja-JP', 'ja'],
+      '중국어': ['zh-CN', 'zh-TW', 'zh-HK', 'zh'],
+      '러시아어': ['ru-RU', 'ru'],
+      '포르투갈어': ['pt-BR', 'pt-PT', 'pt'],
+      '아랍어': ['ar-SA', 'ar-EG', 'ar-AE', 'ar'],
+      '네덜란드어': ['nl-NL', 'nl-BE', 'nl'],
+      '스웨덴어': ['sv-SE', 'sv'],
+      '노르웨이어': ['no-NO', 'nb-NO', 'no'],
+      '덴마크어': ['da-DK', 'da'],
+      '핀란드어': ['fi-FI', 'fi'],
+      '폴란드어': ['pl-PL', 'pl'],
+      '체코어': ['cs-CZ', 'cs'],
+      '헝가리어': ['hu-HU', 'hu'],
+      '그리스어': ['el-GR', 'el'],
+      '터키어': ['tr-TR', 'tr'],
+      '히브리어': ['he-IL', 'he'],
+      '힌디어': ['hi-IN', 'hi'],
+      '태국어': ['th-TH', 'th'],
+      '베트남어': ['vi-VN', 'vi'],
+      '인도네시아어': ['id-ID', 'id'],
+      '말레이어': ['ms-MY', 'ms'],
+      '한국어': ['ko-KR', 'ko']
     };
 
     const targetLangCodes = languageMap[selectedLanguage] || ['en-US'];
     console.log(`🎯 Target language codes for ${selectedLanguage}:`, targetLangCodes);
 
-    // 음성 로딩 대기 함수
+    // 🔄 음성 로딩 대기 함수 - 강화된 버전
     const waitForVoices = (): Promise<SpeechSynthesisVoice[]> => {
       return new Promise((resolve) => {
-        const voices = speechSynthesis.getVoices();
-        if (voices.length > 0) {
-          console.log(`✅ Found ${voices.length} voices immediately`);
-          resolve(voices);
-        } else {
-          console.log('⏳ Waiting for voices to load...');
-          const handleVoicesChanged = () => {
-            const newVoices = speechSynthesis.getVoices();
-            console.log(`✅ Voices loaded: ${newVoices.length} voices available`);
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        const checkVoices = () => {
+          const voices = speechSynthesis.getVoices();
+          attempts++;
+          
+          if (voices.length > 0) {
+            console.log(`✅ Found ${voices.length} voices after ${attempts} attempts`);
+            resolve(voices);
+          } else if (attempts < maxAttempts) {
+            console.log(`⏳ Attempt ${attempts}: Waiting for voices...`);
+            setTimeout(checkVoices, 100);
+          } else {
+            console.log('⏰ Timeout: Using empty voices array');
+            resolve([]);
+          }
+        };
+
+        // 즉시 체크
+        checkVoices();
+
+        // voiceschanged 이벤트도 리스닝
+        const handleVoicesChanged = () => {
+          const newVoices = speechSynthesis.getVoices();
+          if (newVoices.length > 0) {
+            console.log(`✅ Voices loaded via event: ${newVoices.length} voices`);
             speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
             resolve(newVoices);
-          };
-          speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-          
-          // 3초 타임아웃
-          setTimeout(() => {
-            const fallbackVoices = speechSynthesis.getVoices();
-            console.log(`⏰ Timeout: Using ${fallbackVoices.length} voices`);
-            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-            resolve(fallbackVoices);
-          }, 3000);
-        }
+          }
+        };
+        speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
       });
     };
 
-    // 최적 음성 선택 알고리즘
+    // 🎯 최적 음성 선택 알고리즘 - 프랑스어 특화
     const selectBestVoice = (voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
-      console.log('🔍 Available voices:', voices.map(v => `${v.name} (${v.lang})`));
+      console.log('🔍 Available voices:', voices.map(v => `${v.name} (${v.lang}) ${v.default ? '[DEFAULT]' : ''}`));
       
+      // 🇫🇷 프랑스어 특별 처리
+      if (selectedLanguage === '프랑스어') {
+        console.log('🇫🇷 French language detected - using specialized selection');
+        
+        // 1. 프랑스어 전용 음성 찾기 (정확한 매칭)
+        const frenchVoices = voices.filter(v => 
+          v.lang.toLowerCase().startsWith('fr') || 
+          v.name.toLowerCase().includes('french') ||
+          v.name.toLowerCase().includes('français') ||
+          v.name.toLowerCase().includes('france')
+        );
+        
+        console.log('🇫🇷 French voices found:', frenchVoices.map(v => `${v.name} (${v.lang})`));
+        
+        if (frenchVoices.length > 0) {
+          // 프랑스 본토 음성 우선
+          const franceFrench = frenchVoices.find(v => v.lang === 'fr-FR');
+          if (franceFrench) {
+            console.log('🎯 Selected France French voice:', franceFrench.name);
+            return franceFrench;
+          }
+          
+          // 기본 프랑스어 음성
+          const defaultFrench = frenchVoices.find(v => v.default);
+          if (defaultFrench) {
+            console.log('⭐ Selected default French voice:', defaultFrench.name);
+            return defaultFrench;
+          }
+          
+          // 첫 번째 프랑스어 음성
+          console.log('🔤 Selected first French voice:', frenchVoices[0].name);
+          return frenchVoices[0];
+        }
+      }
+
+      // 일반 언어 선택 로직
       // 1단계: 정확한 언어 코드 매칭
       for (const langCode of targetLangCodes) {
         const exactMatch = voices.find(v => v.lang === langCode);
@@ -191,15 +249,15 @@ export function Sentences() {
 
       // 5단계: 언어 이름 포함 검색
       const languageNames: Record<string, string[]> = {
-        '프랑스어': ['french', 'français', 'francais', 'france'],
-        '독일어': ['german', 'deutsch', 'germany'],
-        '스페인어': ['spanish', 'español', 'espanol', 'spain'],
-        '이탈리아어': ['italian', 'italiano', 'italy'],
-        '일본어': ['japanese', '日本語', 'japan'],
-        '중국어': ['chinese', '中文', 'china', 'mandarin'],
-        '러시아어': ['russian', 'русский', 'russia'],
-        '포르투갈어': ['portuguese', 'português', 'portugal', 'brazil'],
-        '아랍어': ['arabic', 'العربية', 'arab']
+        '프랑스어': ['french', 'français', 'francais', 'france', 'marie', 'amelie', 'julie'],
+        '독일어': ['german', 'deutsch', 'germany', 'anna', 'petra'],
+        '스페인어': ['spanish', 'español', 'espanol', 'spain', 'monica', 'jorge'],
+        '이탈리아어': ['italian', 'italiano', 'italy', 'alice', 'luca'],
+        '일본어': ['japanese', '日本語', 'japan', 'kyoko', 'otoya'],
+        '중국어': ['chinese', '中文', 'china', 'mandarin', 'yaoyao', 'kangkang'],
+        '러시아어': ['russian', 'русский', 'russia', 'irina', 'pavel'],
+        '포르투갈어': ['portuguese', 'português', 'portugal', 'brazil', 'heloisa', 'daniel'],
+        '아랍어': ['arabic', 'العربية', 'arab', 'naayf', 'maged']
       };
 
       const searchTerms = languageNames[selectedLanguage] || [];
@@ -242,14 +300,24 @@ export function Sentences() {
         console.log(`🔄 Fallback to language code: ${targetLangCodes[0]}`);
       }
 
-      // 학습 최적화 설정
-      utterance.rate = 0.85;    // 학습에 적합한 속도
-      utterance.pitch = 1.0;    // 자연스러운 음높이
+      // 🎵 학습 최적화 설정 - 언어별 조정
+      if (selectedLanguage === '프랑스어') {
+        utterance.rate = 0.75;    // 프랑스어는 조금 더 천천히
+        utterance.pitch = 1.1;    // 약간 높은 음높이로 명확하게
+      } else if (selectedLanguage === '독일어') {
+        utterance.rate = 0.8;     // 독일어도 천천히
+        utterance.pitch = 0.9;    // 약간 낮은 음높이
+      } else {
+        utterance.rate = 0.85;    // 기본 학습 속도
+        utterance.pitch = 1.0;    // 자연스러운 음높이
+      }
+      
       utterance.volume = 1.0;   // 최대 볼륨
 
-      // 고급 에러 핸들링
+      // 🔧 고급 에러 핸들링
       utterance.onerror = (event) => {
         console.error('🚨 Speech synthesis error:', event.error);
+        setIsPlaying(null);
         
         let errorMessage = '발음 재생에 실패했습니다.';
         
@@ -292,18 +360,21 @@ export function Sentences() {
 
       utterance.onend = () => {
         console.log(`✅ Finished playing: "${text}"`);
+        setIsPlaying(null);
       };
 
-      // 기존 음성 중지 후 새 음성 재생
-      speechSynthesis.cancel();
-      
-      // 약간의 지연 후 재생 (브라우저 호환성)
-      setTimeout(() => {
-        speechSynthesis.speak(utterance);
-      }, 100);
+      // 중단 시 상태 초기화
+      utterance.onpause = () => {
+        setIsPlaying(null);
+      };
+
+      // 🎵 음성 재생 시작
+      console.log(`🚀 Starting speech synthesis for ${selectedLanguage}...`);
+      speechSynthesis.speak(utterance);
 
     } catch (error) {
       console.error('🚨 TTS Error:', error);
+      setIsPlaying(null);
       alert(`발음 재생 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     }
   };
@@ -354,11 +425,18 @@ export function Sentences() {
               <div className="col-span-4">
                 <div className="flex items-start space-x-2">
                   <button
-                    onClick={() => playAudio(sentence.english_text)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-lg flex-shrink-0 group"
-                    title={`${selectedLanguage} 발음 듣기`}
+                    onClick={() => playAudio(sentence.english_text, sentence.id)}
+                    disabled={isPlaying === sentence.id}
+                    className={`p-2 transition-all rounded-lg flex-shrink-0 group ${
+                      isPlaying === sentence.id
+                        ? 'text-blue-600 bg-blue-100 animate-pulse'
+                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    }`}
+                    title={`${selectedLanguage} 발음 듣기 ${isPlaying === sentence.id ? '(재생 중...)' : ''}`}
                   >
-                    <Volume2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <Volume2 className={`w-4 h-4 transition-transform ${
+                      isPlaying === sentence.id ? 'scale-110' : 'group-hover:scale-110'
+                    }`} />
                   </button>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
@@ -626,11 +704,30 @@ export function Sentences() {
         
         {/* Language-specific tip */}
         {selectedLanguage === '프랑스어' && (
-          <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-900">
-              <strong>🇫🇷 프랑스어 팁:</strong> 발음 버튼을 클릭하면 정확한 프랑스어 발음을 들을 수 있습니다. 
-              연음(liaison)과 무음 문자에 주의하며 들어보세요!
-            </p>
+          <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+            <div className="flex items-start">
+              <span className="text-2xl mr-3">🇫🇷</span>
+              <div>
+                <p className="text-sm font-semibold text-blue-900 mb-1">프랑스어 발음 특화 기능</p>
+                <p className="text-sm text-blue-800">
+                  발음 버튼을 클릭하면 정확한 프랑스어 발음을 들을 수 있습니다. 
+                  연음(liaison)과 무음 문자에 주의하며 들어보세요! 
+                  <span className="font-medium">재생 중일 때는 버튼이 파란색으로 표시됩니다.</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Audio Status Indicator */}
+        {isPlaying && (
+          <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
+            <div className="flex items-center">
+              <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />
+              <p className="text-sm text-blue-800">
+                <strong>{selectedLanguage} 발음 재생 중...</strong> 다른 문장을 재생하려면 해당 버튼을 클릭하세요.
+              </p>
+            </div>
           </div>
         )}
       </div>
