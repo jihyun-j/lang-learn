@@ -6,14 +6,6 @@ export interface TranslationResponse {
   useful_expressions?: string[];
 }
 
-export interface PronunciationFeedback {
-  pronunciation_score: number;
-  grammar_score: number;
-  overall_score: number;
-  feedback: string;
-  suggestions?: string[];
-}
-
 // Fallback translations for common phrases when API is unavailable
 const fallbackTranslations: Record<string, string> = {
   'hello': '안녕하세요',
@@ -178,111 +170,6 @@ Keywords: [key expressions separated by commas]`
       throw new Error(`번역 실패: ${error.message}`);
     }
     throw new Error('번역에 실패했습니다. 네트워크 연결을 확인해주세요.');
-  }
-}
-
-export async function analyzePronunciation(
-  originalSentence: string,
-  spokenText: string,
-  targetLang: string
-): Promise<PronunciationFeedback> {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인해주세요.');
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a language pronunciation coach. Compare the original ${targetLang} sentence with what the user actually said. Analyze pronunciation accuracy, grammar correctness, and provide constructive feedback. 
-
-Return response in JSON format with these fields:
-- pronunciation_score: score from 0-100 for pronunciation accuracy
-- grammar_score: score from 0-100 for grammar correctness  
-- overall_score: overall score from 0-100
-- feedback: constructive feedback in Korean explaining what was good and what can be improved
-- suggestions: array of specific suggestions for improvement (optional)
-
-Be encouraging but honest in your assessment.`
-          },
-          {
-            role: 'user',
-            content: `Original sentence: "${originalSentence}"\nUser's spoken text: "${spokenText}"`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 800,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      
-      // Handle quota exceeded error specifically
-      if (errorData.error?.code === 'insufficient_quota' || 
-          errorData.error?.message?.includes('exceeded your current quota')) {
-        console.warn('OpenAI API quota exceeded, providing basic feedback');
-        return {
-          pronunciation_score: 75,
-          grammar_score: 75,
-          overall_score: 75,
-          feedback: "발음 분석 서비스의 사용량이 초과되어 기본 피드백을 제공합니다. 계속 연습하시면 실력이 향상될 거예요! API 크레딧을 충전하시면 더 자세한 분석을 받을 수 있습니다.",
-          suggestions: ["꾸준한 연습이 가장 중요합니다", "원어민 발음을 많이 들어보세요"]
-        };
-      }
-      
-      throw new Error(`OpenAI API 오류: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    
-    try {
-      const parsed = JSON.parse(content);
-      return {
-        pronunciation_score: parsed.pronunciation_score || 70,
-        grammar_score: parsed.grammar_score || 70,
-        overall_score: parsed.overall_score || 70,
-        feedback: parsed.feedback || "좋은 시도입니다! 계속 연습하시면 더 나아질 거예요.",
-        suggestions: parsed.suggestions
-      };
-    } catch (parseError) {
-      // If JSON parsing fails, return default scores with the content as feedback
-      return {
-        pronunciation_score: 70,
-        grammar_score: 70,
-        overall_score: 70,
-        feedback: extractCleanTranslation(content) || "좋은 시도입니다! 계속 연습하시면 더 나아질 거예요."
-      };
-    }
-  } catch (error) {
-    console.error('Pronunciation analysis error:', error);
-    
-    // Provide fallback feedback for quota/network errors
-    if (error instanceof Error && 
-        (error.message.includes('quota') || error.message.includes('network') || error.message.includes('fetch'))) {
-      console.warn('Using fallback pronunciation feedback due to API unavailability');
-      return {
-        pronunciation_score: 75,
-        grammar_score: 75,
-        overall_score: 75,
-        feedback: "발음 분석 서비스에 일시적인 문제가 있어 기본 피드백을 제공합니다. 계속 연습하시면 실력이 향상될 거예요!",
-        suggestions: ["꾸준한 연습이 가장 중요합니다", "원어민 발음을 많이 들어보세요"]
-      };
-    }
-    
-    if (error instanceof Error) {
-      throw new Error(`발음 분석 실패: ${error.message}`);
-    }
-    throw new Error('발음 분석에 실패했습니다. 네트워크 연결을 확인해주세요.');
   }
 }
 
