@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Tag, Star } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe } from 'lucide-react';
 import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -7,7 +7,6 @@ import { useAuth } from '../hooks/useAuth';
 export function Learn() {
   const [sentence, setSentence] = useState('');
   const [translation, setTranslation] = useState('');
-  const [explanation, setExplanation] = useState('');
   const [usefulExpressions, setUsefulExpressions] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [loading, setLoading] = useState(false);
@@ -30,7 +29,6 @@ export function Learn() {
       setSelectedLanguage(event.detail);
       // Clear current translation when language changes
       setTranslation('');
-      setExplanation('');
       setUsefulExpressions([]);
     };
 
@@ -47,7 +45,6 @@ export function Learn() {
     try {
       const result = await translateSentence(sentence, selectedLanguage, '한국어');
       setTranslation(result.translation);
-      setExplanation(result.explanation || '');
       setUsefulExpressions(result.useful_expressions || []);
     } catch (error) {
       console.error('Translation failed:', error);
@@ -78,7 +75,6 @@ export function Learn() {
       setTimeout(() => {
         setSentence('');
         setTranslation('');
-        setExplanation('');
         setUsefulExpressions([]);
         setDifficulty('medium');
         setSaved(false);
@@ -87,15 +83,6 @@ export function Learn() {
       console.error('Save failed:', error);
       alert('저장에 실패했습니다. 다시 시도해주세요.');
     }
-  };
-
-  const handleLanguageSelect = (language: string) => {
-    setSelectedLanguage(language);
-    localStorage.setItem('selectedLanguage', language);
-    // Clear current translation when language changes
-    setTranslation('');
-    setExplanation('');
-    setUsefulExpressions([]);
   };
 
   return (
@@ -110,34 +97,32 @@ export function Learn() {
         <p className="text-lg text-gray-600">새로운 문장을 입력하고 AI가 해석해드려요</p>
       </div>
 
+      {/* Tips Section - Moved to top */}
+      <div className="bg-blue-50 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 학습 팁</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>일상에서 자주 사용하는 문장을 입력해보세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>난이도를 적절히 설정하여 체계적으로 학습하세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>핵심 표현들을 따로 정리해서 복습하세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p>저장한 문장은 복습 모드에서 연습할 수 있어요</p>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="space-y-6">
-            {/* Language Selection */}
-            {languages.length > 1 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  학습 언어 선택
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {languages.map((language) => (
-                    <button
-                      key={language}
-                      onClick={() => handleLanguageSelect(language)}
-                      className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${
-                        selectedLanguage === language
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      <Globe className="w-4 h-4 mr-2" />
-                      {language}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Current Language Display */}
             <div className="bg-blue-50 rounded-lg p-4">
               <div className="flex items-center">
@@ -146,6 +131,9 @@ export function Learn() {
                   현재 학습 언어: <span className="font-bold">{selectedLanguage}</span>
                 </span>
               </div>
+              <p className="text-xs text-blue-600 mt-1">
+                사이드바에서 다른 언어로 변경할 수 있습니다
+              </p>
             </div>
 
             {/* Input Section */}
@@ -224,39 +212,19 @@ export function Learn() {
                   </div>
                 </div>
 
-                {/* Explanation */}
-                {explanation && (
-                  <div className="bg-amber-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-amber-800 mb-3">
-                      📝 상세 설명
-                    </h3>
-                    <p className="text-amber-700 leading-relaxed">{explanation}</p>
-                  </div>
-                )}
-
                 {/* Useful Expressions */}
                 {usefulExpressions.length > 0 && (
                   <div className="bg-emerald-50 rounded-lg p-6">
-                    <div className="flex items-center mb-4">
-                      <Tag className="w-5 h-5 text-emerald-600 mr-2" />
-                      <h3 className="text-lg font-semibold text-emerald-800">
-                        핵심 표현 및 어휘
-                      </h3>
-                    </div>
+                    <h3 className="text-lg font-semibold text-emerald-800 mb-3">
+                      핵심 표현 및 어휘
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {usefulExpressions.map((expression, index) => (
-                        <div key={index} className="flex items-start bg-white rounded-lg p-4 shadow-sm border border-emerald-200">
-                          <Star className="w-4 h-4 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-emerald-800 font-medium text-sm leading-relaxed">{expression}</p>
-                          </div>
+                        <div key={index} className="flex items-start bg-white rounded-lg p-3 shadow-sm">
+                          <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                          <p className="text-emerald-700 text-sm">{expression}</p>
                         </div>
                       ))}
-                    </div>
-                    <div className="mt-4 p-3 bg-emerald-100 rounded-lg">
-                      <p className="text-xs text-emerald-700">
-                        💡 이 표현들은 문장과 함께 저장되어 나중에 복습할 수 있습니다.
-                      </p>
                     </div>
                   </div>
                 )}
@@ -283,29 +251,6 @@ export function Learn() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Tips Section */}
-        <div className="bg-blue-50 rounded-xl p-6 mt-8">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 학습 팁</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-            <div className="flex items-start">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>일상에서 자주 사용하는 문장을 입력해보세요</p>
-            </div>
-            <div className="flex items-start">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>난이도를 적절히 설정하여 체계적으로 학습하세요</p>
-            </div>
-            <div className="flex items-start">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>핵심 표현들을 따로 정리해서 복습하세요</p>
-            </div>
-            <div className="flex items-start">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>저장한 문장은 복습 모드에서 연습할 수 있어요</p>
-            </div>
           </div>
         </div>
       </div>
