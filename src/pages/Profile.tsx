@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Brain, Plus, Minus } from 'lucide-react';
+import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Brain, Plus, Minus, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useUserGoals } from '../hooks/useUserGoals';
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 interface ProfileStats {
@@ -50,12 +51,18 @@ export function Profile() {
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [editingGoals, setEditingGoals] = useState(false);
   const [editForm, setEditForm] = useState({
     native_language: '',
     target_languages: [''],
   });
+  const [goalForm, setGoalForm] = useState({
+    daily_sentence_goal: 3,
+    daily_review_goal: 5,
+  });
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
   const { user } = useAuth();
+  const { goals, loading: goalsLoading, updateGoals } = useUserGoals();
 
   const availableLanguages = [
     '영어', '일본어', '중국어', '프랑스어', '독일어', '스페인어', '이탈리아어', '러시아어', '포르투갈어', '아랍어'
@@ -67,6 +74,15 @@ export function Profile() {
       loadStatsData();
     }
   }, [user, timeRange]);
+
+  useEffect(() => {
+    if (goals) {
+      setGoalForm({
+        daily_sentence_goal: goals.daily_sentence_goal,
+        daily_review_goal: goals.daily_review_goal,
+      });
+    }
+  }, [goals]);
 
   const loadProfileData = async () => {
     if (!user) return;
@@ -252,6 +268,29 @@ export function Profile() {
     }
   };
 
+  const handleSaveGoals = async () => {
+    if (goalForm.daily_sentence_goal < 1 || goalForm.daily_review_goal < 1) {
+      alert('목표는 최소 1개 이상이어야 합니다.');
+      return;
+    }
+
+    if (goalForm.daily_sentence_goal > 50 || goalForm.daily_review_goal > 100) {
+      alert('목표가 너무 높습니다. 현실적인 목표를 설정해주세요.');
+      return;
+    }
+
+    try {
+      const { error } = await updateGoals(goalForm);
+      if (error) throw error;
+
+      setEditingGoals(false);
+      alert('학습 목표가 성공적으로 업데이트되었습니다.');
+    } catch (error) {
+      console.error('Failed to update goals:', error);
+      alert('목표 업데이트에 실패했습니다.');
+    }
+  };
+
   const handleCancelEdit = () => {
     if (profile) {
       setEditForm({
@@ -260,6 +299,16 @@ export function Profile() {
       });
     }
     setEditing(false);
+  };
+
+  const handleCancelGoalEdit = () => {
+    if (goals) {
+      setGoalForm({
+        daily_sentence_goal: goals.daily_sentence_goal,
+        daily_review_goal: goals.daily_review_goal,
+      });
+    }
+    setEditingGoals(false);
   };
 
   const addLanguage = () => {
@@ -287,7 +336,7 @@ export function Profile() {
     }));
   };
 
-  if (loading || !profile || !stats) {
+  if (loading || !profile || !stats || goalsLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -308,6 +357,115 @@ export function Profile() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900">프로필</h1>
         <p className="mt-2 text-lg text-gray-600">개인 정보와 학습 통계를 확인하세요</p>
+      </div>
+
+      {/* Daily Goals Section */}
+      <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Target className="w-6 h-6 text-green-600 mr-3" />
+            <h2 className="text-xl font-semibold text-gray-900">일일 학습 목표</h2>
+          </div>
+          {!editingGoals ? (
+            <button
+              onClick={() => setEditingGoals(true)}
+              className="flex items-center px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              목표 설정
+            </button>
+          ) : (
+            <div className="flex space-x-2">
+              <button
+                onClick={handleSaveGoals}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                저장
+              </button>
+              <button
+                onClick={handleCancelGoalEdit}
+                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4 mr-2" />
+                취소
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
+            <div className="flex items-center mb-4">
+              <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">새 문장 학습 목표</h3>
+                <p className="text-sm text-blue-700">매일 학습할 새로운 문장 수</p>
+              </div>
+            </div>
+            {editingGoals ? (
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={goalForm.daily_sentence_goal}
+                  onChange={(e) => setGoalForm(prev => ({ ...prev, daily_sentence_goal: parseInt(e.target.value) || 1 }))}
+                  className="w-full px-4 py-3 text-2xl font-bold text-center border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-blue-600 text-center">1-50개 사이로 설정하세요</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-4xl font-bold text-blue-600 mb-2">{goals?.daily_sentence_goal || 3}</p>
+                <p className="text-blue-700 font-medium">개 / 일</p>
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 bg-green-50 rounded-xl border border-green-200">
+            <div className="flex items-center mb-4">
+              <RotateCcw className="w-8 h-8 text-green-600 mr-3" />
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">복습 목표</h3>
+                <p className="text-sm text-green-700">매일 복습할 문장 수</p>
+              </div>
+            </div>
+            {editingGoals ? (
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={goalForm.daily_review_goal}
+                  onChange={(e) => setGoalForm(prev => ({ ...prev, daily_review_goal: parseInt(e.target.value) || 1 }))}
+                  className="w-full px-4 py-3 text-2xl font-bold text-center border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <p className="text-xs text-green-600 text-center">1-100개 사이로 설정하세요</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-4xl font-bold text-green-600 mb-2">{goals?.daily_review_goal || 5}</p>
+                <p className="text-green-700 font-medium">개 / 일</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {!editingGoals && (
+          <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-start">
+              <Target className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />
+              <div>
+                <h4 className="font-semibold text-yellow-900 mb-1">목표 설정 팁</h4>
+                <p className="text-sm text-yellow-800">
+                  현실적이고 달성 가능한 목표를 설정하세요. 꾸준함이 가장 중요합니다! 
+                  처음에는 낮은 목표로 시작해서 점차 늘려가는 것을 추천합니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Profile Information */}

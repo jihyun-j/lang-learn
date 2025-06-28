@@ -1,10 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, RotateCcw } from 'lucide-react';
+import { BookOpen, RotateCcw, Target, TrendingUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useDailyProgress } from '../hooks/useDailyProgress';
 
 export function Home() {
   const { user } = useAuth();
+
+  // Get user's target languages
+  const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
+  const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
+  
+  // Get current selected language from localStorage or default to first language
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    const saved = localStorage.getItem('selectedLanguage');
+    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
+  });
+
+  const { progress, loading } = useDailyProgress(selectedLanguage);
+
+  // Listen for language changes from the sidebar
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setSelectedLanguage(event.detail);
+    };
+
+    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+    };
+  }, []);
+
+  const sentenceProgress = progress.sentenceGoal > 0 ? (progress.todaySentences / progress.sentenceGoal) * 100 : 0;
+  const reviewProgress = progress.reviewGoal > 0 ? (progress.todayReviews / progress.reviewGoal) * 100 : 0;
 
   return (
     <div className="space-y-8">
@@ -22,9 +50,13 @@ export function Home() {
       <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            오늘의 목표
+            {selectedLanguage} 오늘의 목표
           </h3>
           <p className="text-gray-600">매일 꾸준히 학습하여 목표를 달성해보세요</p>
+          <div className="mt-3 flex items-center justify-center text-sm text-gray-500">
+            <Target className="w-4 h-4 mr-1" />
+            <span>프로필에서 목표를 변경할 수 있습니다</span>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -37,17 +69,30 @@ export function Home() {
                 </div>
                 <div className="ml-4">
                   <h4 className="text-lg font-semibold text-gray-900">새 문장 학습</h4>
-                  <p className="text-sm text-gray-600">목표: 3개</p>
+                  <p className="text-sm text-gray-600">목표: {progress.sentenceGoal}개</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-blue-600">1/3</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {loading ? '...' : `${progress.todaySentences}/${progress.sentenceGoal}`}
+                </p>
                 <p className="text-xs text-gray-500">완료</p>
               </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: '33%' }}></div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div 
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${Math.min(sentenceProgress, 100)}%` }}
+              ></div>
             </div>
+            {sentenceProgress >= 100 && (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center text-green-700">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  <span className="text-sm font-medium">🎉 오늘 목표 달성!</span>
+                </div>
+              </div>
+            )}
             <div className="mt-4">
               <Link
                 to="/learn"
@@ -68,17 +113,30 @@ export function Home() {
                 </div>
                 <div className="ml-4">
                   <h4 className="text-lg font-semibold text-gray-900">복습하기</h4>
-                  <p className="text-sm text-gray-600">목표: 5개</p>
+                  <p className="text-sm text-gray-600">목표: {progress.reviewGoal}개</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-green-600">3/5</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {loading ? '...' : `${progress.todayReviews}/${progress.reviewGoal}`}
+                </p>
                 <p className="text-xs text-gray-500">완료</p>
               </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-500 h-2 rounded-full" style={{ width: '60%' }}></div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div 
+                className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${Math.min(reviewProgress, 100)}%` }}
+              ></div>
             </div>
+            {reviewProgress >= 100 && (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center text-green-700">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  <span className="text-sm font-medium">🎉 오늘 목표 달성!</span>
+                </div>
+              </div>
+            )}
             <div className="mt-4">
               <Link
                 to="/review"
