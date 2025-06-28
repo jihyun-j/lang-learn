@@ -97,142 +97,233 @@ export function Sentences() {
     }
   };
 
-  // Enhanced text-to-speech function with comprehensive language support
-  const playAudio = (text: string) => {
+  // 완전히 새로운 고급 TTS 시스템
+  const playAudio = async (text: string) => {
     if (!text.trim()) return;
 
-    // Comprehensive language code mapping for better TTS support
-    const languageMap: Record<string, string> = {
-      '영어': 'en-US',
-      '일본어': 'ja-JP',
-      '중국어': 'zh-CN',
-      '프랑스어': 'fr-FR',
-      '독일어': 'de-DE',
-      '스페인어': 'es-ES',
-      '이탈리아어': 'it-IT',
-      '러시아어': 'ru-RU',
-      '포르투갈어': 'pt-BR',
-      '아랍어': 'ar-SA',
-      '네덜란드어': 'nl-NL',
-      '스웨덴어': 'sv-SE',
-      '노르웨이어': 'no-NO',
-      '덴마크어': 'da-DK',
-      '핀란드어': 'fi-FI',
-      '폴란드어': 'pl-PL',
-      '체코어': 'cs-CZ',
-      '헝가리어': 'hu-HU',
-      '그리스어': 'el-GR',
-      '터키어': 'tr-TR',
-      '히브리어': 'he-IL',
-      '힌디어': 'hi-IN',
-      '태국어': 'th-TH',
-      '베트남어': 'vi-VN',
-      '인도네시아어': 'id-ID',
-      '말레이어': 'ms-MY'
+    console.log(`🎵 Playing audio for: "${text}" in ${selectedLanguage}`);
+
+    // 최신 언어 매핑 (2024년 기준)
+    const languageMap: Record<string, string[]> = {
+      '영어': ['en-US', 'en-GB', 'en-AU', 'en-CA'],
+      '프랑스어': ['fr-FR', 'fr-CA', 'fr-BE', 'fr-CH'],
+      '독일어': ['de-DE', 'de-AT', 'de-CH'],
+      '스페인어': ['es-ES', 'es-MX', 'es-AR', 'es-US'],
+      '이탈리아어': ['it-IT', 'it-CH'],
+      '일본어': ['ja-JP'],
+      '중국어': ['zh-CN', 'zh-TW', 'zh-HK'],
+      '러시아어': ['ru-RU'],
+      '포르투갈어': ['pt-BR', 'pt-PT'],
+      '아랍어': ['ar-SA', 'ar-EG', 'ar-AE'],
+      '네덜란드어': ['nl-NL', 'nl-BE'],
+      '스웨덴어': ['sv-SE'],
+      '노르웨이어': ['no-NO', 'nb-NO'],
+      '덴마크어': ['da-DK'],
+      '핀란드어': ['fi-FI'],
+      '폴란드어': ['pl-PL'],
+      '체코어': ['cs-CZ'],
+      '헝가리어': ['hu-HU'],
+      '그리스어': ['el-GR'],
+      '터키어': ['tr-TR'],
+      '히브리어': ['he-IL'],
+      '힌디어': ['hi-IN'],
+      '태국어': ['th-TH'],
+      '베트남어': ['vi-VN'],
+      '인도네시아어': ['id-ID'],
+      '말레이어': ['ms-MY'],
+      '한국어': ['ko-KR']
     };
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    const targetLang = languageMap[selectedLanguage] || 'en-US';
-    utterance.lang = targetLang;
-    
-    // Optimize speech settings for learning
-    utterance.rate = 0.8; // Slightly slower for better comprehension
-    utterance.pitch = 1.0; // Natural pitch
-    utterance.volume = 1.0; // Maximum volume
+    const targetLangCodes = languageMap[selectedLanguage] || ['en-US'];
+    console.log(`🎯 Target language codes for ${selectedLanguage}:`, targetLangCodes);
 
-    // Enhanced error handling
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
+    // 음성 로딩 대기 함수
+    const waitForVoices = (): Promise<SpeechSynthesisVoice[]> => {
+      return new Promise((resolve) => {
+        const voices = speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          console.log(`✅ Found ${voices.length} voices immediately`);
+          resolve(voices);
+        } else {
+          console.log('⏳ Waiting for voices to load...');
+          const handleVoicesChanged = () => {
+            const newVoices = speechSynthesis.getVoices();
+            console.log(`✅ Voices loaded: ${newVoices.length} voices available`);
+            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            resolve(newVoices);
+          };
+          speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+          
+          // 3초 타임아웃
+          setTimeout(() => {
+            const fallbackVoices = speechSynthesis.getVoices();
+            console.log(`⏰ Timeout: Using ${fallbackVoices.length} voices`);
+            speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            resolve(fallbackVoices);
+          }, 3000);
+        }
+      });
+    };
+
+    // 최적 음성 선택 알고리즘
+    const selectBestVoice = (voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
+      console.log('🔍 Available voices:', voices.map(v => `${v.name} (${v.lang})`));
       
-      // Provide specific error messages based on the error type
-      let errorMessage = `발음 재생에 실패했습니다.`;
-      
-      if (event.error === 'not-allowed') {
-        errorMessage += ' 브라우저에서 음성 재생이 차단되었습니다. 설정을 확인해주세요.';
-      } else if (event.error === 'network') {
-        errorMessage += ' 네트워크 연결을 확인해주세요.';
-      } else {
-        errorMessage += ` ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`;
+      // 1단계: 정확한 언어 코드 매칭
+      for (const langCode of targetLangCodes) {
+        const exactMatch = voices.find(v => v.lang === langCode);
+        if (exactMatch) {
+          console.log(`🎯 Exact match found: ${exactMatch.name} (${exactMatch.lang})`);
+          return exactMatch;
+        }
       }
-      
-      alert(errorMessage);
+
+      // 2단계: 언어 계열 매칭 (fr-* 형태)
+      for (const langCode of targetLangCodes) {
+        const langPrefix = langCode.split('-')[0];
+        const familyMatch = voices.find(v => v.lang.startsWith(langPrefix + '-'));
+        if (familyMatch) {
+          console.log(`🌍 Language family match: ${familyMatch.name} (${familyMatch.lang})`);
+          return familyMatch;
+        }
+      }
+
+      // 3단계: 기본 음성 중에서 언어 계열 매칭
+      for (const langCode of targetLangCodes) {
+        const langPrefix = langCode.split('-')[0];
+        const defaultMatch = voices.find(v => v.default && v.lang.startsWith(langPrefix));
+        if (defaultMatch) {
+          console.log(`⭐ Default voice match: ${defaultMatch.name} (${defaultMatch.lang})`);
+          return defaultMatch;
+        }
+      }
+
+      // 4단계: 언어 코드만 매칭 (fr 형태)
+      for (const langCode of targetLangCodes) {
+        const langPrefix = langCode.split('-')[0];
+        const prefixMatch = voices.find(v => v.lang.startsWith(langPrefix));
+        if (prefixMatch) {
+          console.log(`🔤 Language prefix match: ${prefixMatch.name} (${prefixMatch.lang})`);
+          return prefixMatch;
+        }
+      }
+
+      // 5단계: 언어 이름 포함 검색
+      const languageNames: Record<string, string[]> = {
+        '프랑스어': ['french', 'français', 'francais', 'france'],
+        '독일어': ['german', 'deutsch', 'germany'],
+        '스페인어': ['spanish', 'español', 'espanol', 'spain'],
+        '이탈리아어': ['italian', 'italiano', 'italy'],
+        '일본어': ['japanese', '日本語', 'japan'],
+        '중국어': ['chinese', '中文', 'china', 'mandarin'],
+        '러시아어': ['russian', 'русский', 'russia'],
+        '포르투갈어': ['portuguese', 'português', 'portugal', 'brazil'],
+        '아랍어': ['arabic', 'العربية', 'arab']
+      };
+
+      const searchTerms = languageNames[selectedLanguage] || [];
+      for (const term of searchTerms) {
+        const nameMatch = voices.find(v => 
+          v.name.toLowerCase().includes(term.toLowerCase()) ||
+          v.lang.toLowerCase().includes(term.toLowerCase())
+        );
+        if (nameMatch) {
+          console.log(`📝 Name-based match: ${nameMatch.name} (${nameMatch.lang})`);
+          return nameMatch;
+        }
+      }
+
+      console.log(`❌ No suitable voice found for ${selectedLanguage}`);
+      return null;
     };
 
-    // Smart voice selection algorithm
-    const selectBestVoice = () => {
-      const voices = speechSynthesis.getVoices();
+    try {
+      // 음성 로딩 대기
+      const voices = await waitForVoices();
       
       if (voices.length === 0) {
-        console.warn('No voices available yet');
-        return null;
+        throw new Error('음성 엔진을 사용할 수 없습니다.');
       }
 
-      // Priority 1: Exact language match (e.g., fr-FR)
-      let voice = voices.find(v => v.lang === targetLang);
-      
-      // Priority 2: Language family match (e.g., fr-*)
-      if (!voice) {
-        const langCode = targetLang.split('-')[0];
-        voice = voices.find(v => v.lang.startsWith(langCode));
-      }
-      
-      // Priority 3: Default voice for the language
-      if (!voice) {
-        voice = voices.find(v => v.default && v.lang.startsWith(targetLang.split('-')[0]));
-      }
-      
-      // Priority 4: Any voice from the same language family
-      if (!voice) {
-        const langCode = targetLang.split('-')[0];
-        voice = voices.find(v => v.lang.includes(langCode));
-      }
+      // 최적 음성 선택
+      const selectedVoice = selectBestVoice(voices);
 
-      return voice;
-    };
-
-    // Function to speak with the best available voice
-    const speakWithBestVoice = () => {
-      const voice = selectBestVoice();
+      // 음성 합성 설정
+      const utterance = new SpeechSynthesisUtterance(text);
       
-      if (voice) {
-        utterance.voice = voice;
-        console.log(`Using voice: ${voice.name} (${voice.lang}) for ${selectedLanguage}`);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+        console.log(`🎤 Using voice: ${selectedVoice.name} (${selectedVoice.lang})`);
       } else {
-        console.warn(`No suitable voice found for ${selectedLanguage} (${targetLang})`);
+        // 폴백: 첫 번째 타겟 언어 코드 사용
+        utterance.lang = targetLangCodes[0];
+        console.log(`🔄 Fallback to language code: ${targetLangCodes[0]}`);
       }
-      
-      try {
-        speechSynthesis.speak(utterance);
-      } catch (error) {
-        console.error('Failed to speak:', error);
-        alert(`발음 재생 중 오류가 발생했습니다: ${error}`);
-      }
-    };
 
-    // Handle voice loading
-    const voices = speechSynthesis.getVoices();
-    
-    if (voices.length === 0) {
-      // Voices not loaded yet, wait for them
-      const handleVoicesChanged = () => {
-        speakWithBestVoice();
-        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-      };
-      
-      speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-      
-      // Fallback timeout in case voiceschanged doesn't fire
-      setTimeout(() => {
-        if (speechSynthesis.getVoices().length > 0) {
-          speakWithBestVoice();
-        } else {
-          console.warn('Voices still not available after timeout');
-          speechSynthesis.speak(utterance); // Try anyway
+      // 학습 최적화 설정
+      utterance.rate = 0.85;    // 학습에 적합한 속도
+      utterance.pitch = 1.0;    // 자연스러운 음높이
+      utterance.volume = 1.0;   // 최대 볼륨
+
+      // 고급 에러 핸들링
+      utterance.onerror = (event) => {
+        console.error('🚨 Speech synthesis error:', event.error);
+        
+        let errorMessage = '발음 재생에 실패했습니다.';
+        
+        switch (event.error) {
+          case 'not-allowed':
+            errorMessage += ' 브라우저에서 음성 재생이 차단되었습니다. 설정을 확인해주세요.';
+            break;
+          case 'network':
+            errorMessage += ' 네트워크 연결을 확인해주세요.';
+            break;
+          case 'synthesis-failed':
+            errorMessage += ` ${selectedLanguage} 음성 합성에 실패했습니다.`;
+            break;
+          case 'synthesis-unavailable':
+            errorMessage += ` ${selectedLanguage} 음성이 현재 사용할 수 없습니다.`;
+            break;
+          case 'language-unavailable':
+            errorMessage += ` ${selectedLanguage} 언어가 지원되지 않습니다.`;
+            break;
+          case 'voice-unavailable':
+            errorMessage += ` ${selectedLanguage} 음성을 찾을 수 없습니다.`;
+            break;
+          case 'text-too-long':
+            errorMessage += ' 텍스트가 너무 깁니다.';
+            break;
+          case 'invalid-argument':
+            errorMessage += ' 잘못된 음성 설정입니다.';
+            break;
+          default:
+            errorMessage += ` 알 수 없는 오류: ${event.error}`;
         }
-      }, 1000);
-    } else {
-      // Voices already available
-      speakWithBestVoice();
+        
+        alert(errorMessage);
+      };
+
+      // 성공 로깅
+      utterance.onstart = () => {
+        console.log(`🎵 Started playing: "${text}" in ${selectedLanguage}`);
+      };
+
+      utterance.onend = () => {
+        console.log(`✅ Finished playing: "${text}"`);
+      };
+
+      // 기존 음성 중지 후 새 음성 재생
+      speechSynthesis.cancel();
+      
+      // 약간의 지연 후 재생 (브라우저 호환성)
+      setTimeout(() => {
+        speechSynthesis.speak(utterance);
+      }, 100);
+
+    } catch (error) {
+      console.error('🚨 TTS Error:', error);
+      alert(`발음 재생 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     }
   };
 
@@ -283,25 +374,25 @@ export function Sentences() {
                 <div className="flex items-start space-x-2">
                   <button
                     onClick={() => playAudio(sentence.english_text)}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0 rounded hover:bg-blue-50"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-lg flex-shrink-0 group"
                     title={`${selectedLanguage} 발음 듣기`}
                   >
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 break-words">{sentence.english_text}</p>
+                    <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
                     {sentence.keywords && sentence.keywords.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {sentence.keywords.slice(0, 3).map((keyword, idx) => (
                           <span
                             key={idx}
-                            className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
+                            className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full"
                           >
                             {keyword.length > 20 ? `${keyword.substring(0, 20)}...` : keyword}
                           </span>
                         ))}
                         {sentence.keywords.length > 3 && (
-                          <span className="text-xs text-gray-500">+{sentence.keywords.length - 3}</span>
+                          <span className="text-xs text-gray-500 px-2 py-1">+{sentence.keywords.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -309,7 +400,7 @@ export function Sentences() {
                 </div>
               </div>
               <div className="col-span-3">
-                <p className="text-gray-700 break-words">{sentence.korean_translation}</p>
+                <p className="text-gray-700 break-words leading-relaxed">{sentence.korean_translation}</p>
               </div>
               <div className="col-span-1">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
@@ -530,27 +621,37 @@ export function Sentences() {
         </div>
       )}
 
-      {/* Tips Section */}
-      <div className="bg-blue-50 rounded-xl p-6">
+      {/* Enhanced Tips Section */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
         <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 문장 리스트 활용 팁</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>발음 버튼을 클릭하여 {selectedLanguage} 원어민 발음을 들어보세요</p>
+            <p><strong>🔊 발음 버튼</strong>을 클릭하여 {selectedLanguage} 원어민 발음을 들어보세요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>검색 기능으로 특정 문장을 빠르게 찾을 수 있어요</p>
+            <p><strong>🔍 검색 기능</strong>으로 특정 문장을 빠르게 찾을 수 있어요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>난이도별로 필터링하여 체계적으로 학습하세요</p>
+            <p><strong>📊 난이도 필터</strong>로 체계적으로 학습 단계를 관리하세요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>복습 모드에서 이 문장들을 음성으로 연습할 수 있어요</p>
+            <p><strong>🎯 복습 모드</strong>에서 이 문장들을 음성으로 연습할 수 있어요</p>
           </div>
         </div>
+        
+        {/* Language-specific tip */}
+        {selectedLanguage === '프랑스어' && (
+          <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-900">
+              <strong>🇫🇷 프랑스어 팁:</strong> 발음 버튼을 클릭하면 정확한 프랑스어 발음을 들을 수 있습니다. 
+              연음(liaison)과 무음 문자에 주의하며 들어보세요!
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
