@@ -97,11 +97,11 @@ export function Sentences() {
     }
   };
 
-  // Enhanced text-to-speech function with proper language support
+  // Enhanced text-to-speech function with comprehensive language support
   const playAudio = (text: string) => {
     if (!text.trim()) return;
 
-    // Language code mapping for better TTS support
+    // Comprehensive language code mapping for better TTS support
     const languageMap: Record<string, string> = {
       '영어': 'en-US',
       '일본어': 'ja-JP',
@@ -112,48 +112,127 @@ export function Sentences() {
       '이탈리아어': 'it-IT',
       '러시아어': 'ru-RU',
       '포르투갈어': 'pt-BR',
-      '아랍어': 'ar-SA'
+      '아랍어': 'ar-SA',
+      '네덜란드어': 'nl-NL',
+      '스웨덴어': 'sv-SE',
+      '노르웨이어': 'no-NO',
+      '덴마크어': 'da-DK',
+      '핀란드어': 'fi-FI',
+      '폴란드어': 'pl-PL',
+      '체코어': 'cs-CZ',
+      '헝가리어': 'hu-HU',
+      '그리스어': 'el-GR',
+      '터키어': 'tr-TR',
+      '히브리어': 'he-IL',
+      '힌디어': 'hi-IN',
+      '태국어': 'th-TH',
+      '베트남어': 'vi-VN',
+      '인도네시아어': 'id-ID',
+      '말레이어': 'ms-MY'
     };
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = languageMap[selectedLanguage] || 'en-US';
+    const targetLang = languageMap[selectedLanguage] || 'en-US';
+    utterance.lang = targetLang;
     
-    // Set speech rate and pitch for better pronunciation
-    utterance.rate = 0.8; // Slightly slower for learning
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    // Optimize speech settings for learning
+    utterance.rate = 0.8; // Slightly slower for better comprehension
+    utterance.pitch = 1.0; // Natural pitch
+    utterance.volume = 1.0; // Maximum volume
 
-    // Handle errors
+    // Enhanced error handling
     utterance.onerror = (event) => {
       console.error('Speech synthesis error:', event.error);
-      alert(`발음 재생에 실패했습니다. ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`);
+      
+      // Provide specific error messages based on the error type
+      let errorMessage = `발음 재생에 실패했습니다.`;
+      
+      if (event.error === 'not-allowed') {
+        errorMessage += ' 브라우저에서 음성 재생이 차단되었습니다. 설정을 확인해주세요.';
+      } else if (event.error === 'network') {
+        errorMessage += ' 네트워크 연결을 확인해주세요.';
+      } else {
+        errorMessage += ` ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`;
+      }
+      
+      alert(errorMessage);
     };
 
-    // Check if voices are available and select the best one
-    const voices = speechSynthesis.getVoices();
-    const targetLang = languageMap[selectedLanguage] || 'en-US';
-    
-    // Try to find a voice that matches the language
-    const voice = voices.find(v => v.lang === targetLang) || 
-                  voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-    
-    if (voice) {
-      utterance.voice = voice;
-    }
+    // Smart voice selection algorithm
+    const selectBestVoice = () => {
+      const voices = speechSynthesis.getVoices();
+      
+      if (voices.length === 0) {
+        console.warn('No voices available yet');
+        return null;
+      }
 
-    // Ensure voices are loaded before speaking
-    if (voices.length === 0) {
-      speechSynthesis.addEventListener('voiceschanged', () => {
-        const updatedVoices = speechSynthesis.getVoices();
-        const updatedVoice = updatedVoices.find(v => v.lang === targetLang) || 
-                            updatedVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-        if (updatedVoice) {
-          utterance.voice = updatedVoice;
-        }
+      // Priority 1: Exact language match (e.g., fr-FR)
+      let voice = voices.find(v => v.lang === targetLang);
+      
+      // Priority 2: Language family match (e.g., fr-*)
+      if (!voice) {
+        const langCode = targetLang.split('-')[0];
+        voice = voices.find(v => v.lang.startsWith(langCode));
+      }
+      
+      // Priority 3: Default voice for the language
+      if (!voice) {
+        voice = voices.find(v => v.default && v.lang.startsWith(targetLang.split('-')[0]));
+      }
+      
+      // Priority 4: Any voice from the same language family
+      if (!voice) {
+        const langCode = targetLang.split('-')[0];
+        voice = voices.find(v => v.lang.includes(langCode));
+      }
+
+      return voice;
+    };
+
+    // Function to speak with the best available voice
+    const speakWithBestVoice = () => {
+      const voice = selectBestVoice();
+      
+      if (voice) {
+        utterance.voice = voice;
+        console.log(`Using voice: ${voice.name} (${voice.lang}) for ${selectedLanguage}`);
+      } else {
+        console.warn(`No suitable voice found for ${selectedLanguage} (${targetLang})`);
+      }
+      
+      try {
         speechSynthesis.speak(utterance);
-      }, { once: true });
+      } catch (error) {
+        console.error('Failed to speak:', error);
+        alert(`발음 재생 중 오류가 발생했습니다: ${error}`);
+      }
+    };
+
+    // Handle voice loading
+    const voices = speechSynthesis.getVoices();
+    
+    if (voices.length === 0) {
+      // Voices not loaded yet, wait for them
+      const handleVoicesChanged = () => {
+        speakWithBestVoice();
+        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+      };
+      
+      speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+      
+      // Fallback timeout in case voiceschanged doesn't fire
+      setTimeout(() => {
+        if (speechSynthesis.getVoices().length > 0) {
+          speakWithBestVoice();
+        } else {
+          console.warn('Voices still not available after timeout');
+          speechSynthesis.speak(utterance); // Try anyway
+        }
+      }, 1000);
     } else {
-      speechSynthesis.speak(utterance);
+      // Voices already available
+      speakWithBestVoice();
     }
   };
 
@@ -204,13 +283,28 @@ export function Sentences() {
                 <div className="flex items-start space-x-2">
                   <button
                     onClick={() => playAudio(sentence.english_text)}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0 rounded hover:bg-blue-50"
                     title={`${selectedLanguage} 발음 듣기`}
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 break-words">{sentence.english_text}</p>
+                    {sentence.keywords && sentence.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {sentence.keywords.slice(0, 3).map((keyword, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
+                          >
+                            {keyword.length > 20 ? `${keyword.substring(0, 20)}...` : keyword}
+                          </span>
+                        ))}
+                        {sentence.keywords.length > 3 && (
+                          <span className="text-xs text-gray-500">+{sentence.keywords.length - 3}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -231,14 +325,14 @@ export function Sentences() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => alert('편집 기능 준비중...')}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-blue-50"
                     title="편집"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => deleteSentence(sentence.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
                     title="삭제"
                   >
                     <Trash2 className="w-4 h-4" />
