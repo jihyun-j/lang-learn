@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, RotateCcw, TrendingUp, Target, Calendar, Globe } from 'lucide-react';
+import { BookOpen, RotateCcw, TrendingUp, Target, Calendar, Globe, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -15,6 +15,8 @@ interface LanguageStats {
 interface TimeBasedStats {
   newSentences: number;
   reviews: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
   accuracy: number;
   studyTime: number;
   completedGoals: number;
@@ -180,8 +182,29 @@ export function Home() {
       // Calculate time-based stats
       const newSentences = sentences?.length || 0;
       const reviewCount = reviews?.length || 0;
-      const accuracy = reviews && reviews.length > 0 
-        ? Math.round(reviews.reduce((acc, r) => acc + r.overall_score, 0) / reviews.length)
+      
+      // Calculate correct/incorrect answers based on review scores
+      let correctAnswers = 0;
+      let incorrectAnswers = 0;
+      
+      if (reviews && reviews.length > 0) {
+        reviews.forEach(review => {
+          // Consider scores 80 and above as correct, below 80 as incorrect
+          if (review.overall_score >= 80) {
+            correctAnswers++;
+          } else {
+            incorrectAnswers++;
+          }
+        });
+      } else {
+        // Mock data for demo when no real reviews exist
+        const totalMockReviews = Math.floor(Math.random() * 15) + 5;
+        correctAnswers = Math.floor(totalMockReviews * 0.7); // 70% correct rate
+        incorrectAnswers = totalMockReviews - correctAnswers;
+      }
+
+      const accuracy = correctAnswers + incorrectAnswers > 0 
+        ? Math.round((correctAnswers / (correctAnswers + incorrectAnswers)) * 100)
         : 0;
 
       // Mock data for study time and goals based on period
@@ -214,6 +237,8 @@ export function Home() {
       setTimeBasedStats({
         newSentences,
         reviews: reviewCount,
+        correctAnswers,
+        incorrectAnswers,
         accuracy,
         studyTime,
         completedGoals,
@@ -225,6 +250,8 @@ export function Home() {
       setTimeBasedStats({
         newSentences: 0,
         reviews: 0,
+        correctAnswers: 0,
+        incorrectAnswers: 0,
         accuracy: 0,
         studyTime: 0,
         completedGoals: 0,
@@ -454,28 +481,32 @@ export function Home() {
             <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
               <div className="flex items-center">
                 <div className="p-3 bg-yellow-100 rounded-full">
-                  <Target className="w-6 h-6 text-yellow-600" />
+                  <CheckCircle className="w-6 h-6 text-yellow-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    {getTimePeriodLabel()} 평균 정확도
+                    {getTimePeriodLabel()} 맞은 문제
                   </p>
-                  <p className="text-3xl font-bold text-gray-900">{timeBasedStats?.accuracy || 0}%</p>
+                  <p className="text-3xl font-bold text-gray-900">{timeBasedStats?.correctAnswers || 0}개</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    정답률 {timeBasedStats?.accuracy || 0}%
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
               <div className="flex items-center">
-                <div className="p-3 bg-purple-100 rounded-full">
-                  <Calendar className="w-6 h-6 text-purple-600" />
+                <div className="p-3 bg-red-100 rounded-full">
+                  <XCircle className="w-6 h-6 text-red-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    {getTimePeriodLabel()} 학습 시간
+                    {getTimePeriodLabel()} 틀린 문제
                   </p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {timeBasedStats ? Math.floor(timeBasedStats.studyTime / 60) : 0}시간
+                  <p className="text-3xl font-bold text-gray-900">{timeBasedStats?.incorrectAnswers || 0}개</p>
+                  <p className="text-xs text-red-600 mt-1">
+                    오답률 {timeBasedStats ? Math.round(((timeBasedStats.incorrectAnswers) / Math.max(1, timeBasedStats.correctAnswers + timeBasedStats.incorrectAnswers)) * 100) : 0}%
                   </p>
                 </div>
               </div>
@@ -487,7 +518,7 @@ export function Home() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {getTimePeriodLabel()} 진도 요약
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <BookOpen className="w-8 h-8 text-blue-600" />
@@ -503,13 +534,36 @@ export function Home() {
                 <p className="text-sm text-gray-600">복습 완료</p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Target className="w-8 h-8 text-purple-600" />
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="w-8 h-8 text-yellow-600" />
                 </div>
-                <p className="text-2xl font-bold text-purple-600">
-                  {timeBasedStats ? Math.round((timeBasedStats.completedGoals / timeBasedStats.totalGoals) * 100) : 0}%
-                </p>
-                <p className="text-sm text-gray-600">목표 달성률</p>
+                <p className="text-2xl font-bold text-yellow-600">{timeBasedStats?.correctAnswers || 0}</p>
+                <p className="text-sm text-gray-600">정답 개수</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <XCircle className="w-8 h-8 text-red-600" />
+                </div>
+                <p className="text-2xl font-bold text-red-600">{timeBasedStats?.incorrectAnswers || 0}</p>
+                <p className="text-sm text-gray-600">오답 개수</p>
+              </div>
+            </div>
+
+            {/* Accuracy Progress Bar */}
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">전체 정답률</span>
+                <span className="text-sm font-bold text-gray-900">{timeBasedStats?.accuracy || 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-500" 
+                  style={{ width: `${timeBasedStats?.accuracy || 0}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>맞은 문제: {timeBasedStats?.correctAnswers || 0}개</span>
+                <span>틀린 문제: {timeBasedStats?.incorrectAnswers || 0}개</span>
               </div>
             </div>
           </div>
