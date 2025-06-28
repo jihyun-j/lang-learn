@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, Tag, Star, Sparkles, RefreshCw } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, Tag, Star, Sparkles, RefreshCw, Plus, Lightbulb } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Sentence } from '../types';
 import { format } from 'date-fns';
 import { extractKeywords } from '../lib/openai';
+import { SelectableText } from '../components/SelectableText';
 
 export function Sentences() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
@@ -16,6 +17,7 @@ export function Sentences() {
   const [totalCount, setTotalCount] = useState(0);
   const [expandedSentence, setExpandedSentence] = useState<string | null>(null);
   const [extractingKeywords, setExtractingKeywords] = useState<string | null>(null);
+  const [editingKeywords, setEditingKeywords] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Get current selected language from localStorage
@@ -188,6 +190,70 @@ export function Sentences() {
     alert(`키워드 추출 완료!\n성공: ${successCount}개\n실패: ${failCount}개`);
   };
 
+  const handleKeywordAdd = async (sentenceId: string, keyword: string) => {
+    try {
+      const sentence = sentences.find(s => s.id === sentenceId);
+      if (!sentence) return;
+
+      const currentKeywords = sentence.keywords || [];
+      
+      // Check if keyword already exists
+      if (currentKeywords.includes(keyword)) {
+        alert('이미 추가된 키워드입니다.');
+        return;
+      }
+
+      const updatedKeywords = [...currentKeywords, keyword];
+
+      // Update the sentence in database
+      const { error } = await supabase
+        .from('sentences')
+        .update({ keywords: updatedKeywords })
+        .eq('id', sentenceId);
+
+      if (error) throw error;
+
+      // Update local state
+      setSentences(prev => prev.map(s => 
+        s.id === sentenceId 
+          ? { ...s, keywords: updatedKeywords }
+          : s
+      ));
+
+    } catch (error) {
+      console.error('Failed to add keyword:', error);
+      alert('키워드 추가에 실패했습니다.');
+    }
+  };
+
+  const removeKeyword = async (sentenceId: string, keywordToRemove: string) => {
+    try {
+      const sentence = sentences.find(s => s.id === sentenceId);
+      if (!sentence) return;
+
+      const updatedKeywords = (sentence.keywords || []).filter(k => k !== keywordToRemove);
+
+      // Update the sentence in database
+      const { error } = await supabase
+        .from('sentences')
+        .update({ keywords: updatedKeywords })
+        .eq('id', sentenceId);
+
+      if (error) throw error;
+
+      // Update local state
+      setSentences(prev => prev.map(s => 
+        s.id === sentenceId 
+          ? { ...s, keywords: updatedKeywords }
+          : s
+      ));
+
+    } catch (error) {
+      console.error('Failed to remove keyword:', error);
+      alert('키워드 삭제에 실패했습니다.');
+    }
+  };
+
   const playAudio = (text: string, lang: string = 'en-US') => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = selectedLanguage === '영어' ? 'en-US' : 
@@ -236,7 +302,7 @@ export function Sentences() {
           <div className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                {/* Original Text with Audio */}
+                {/* Original Text with Audio and Selection */}
                 <div className="flex items-start space-x-3 mb-3">
                   <button
                     onClick={() => playAudio(sentence.english_text)}
@@ -245,10 +311,16 @@ export function Sentences() {
                     <Volume2 className="w-5 h-5" />
                   </button>
                   <div className="flex-1">
-                    <p className="text-lg font-semibold text-gray-900 leading-relaxed">
-                      {sentence.english_text}
-                    </p>
-                    <p className="text-gray-600 mt-1">
+                    <div className="mb-2">
+                      <SelectableText
+                        text={sentence.english_text}
+                        onKeywordAdd={(keyword) => handleKeywordAdd(sentence.id, keyword)}
+                        targetLanguage={sentence.target_language}
+                        className="text-lg font-semibold text-gray-900 leading-relaxed"
+                        disabled={editingKeywords === sentence.id}
+                      />
+                    </div>
+                    <p className="text-gray-600">
                       {sentence.korean_translation}
                     </p>
                   </div>
@@ -256,42 +328,70 @@ export function Sentences() {
 
                 {/* Keywords Section */}
                 <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center">
                       <Tag className="w-4 h-4 text-blue-600 mr-2" />
                       <span className="text-sm font-medium text-blue-600">핵심 표현</span>
-                    </div>
-                    {(!sentence.keywords || sentence.keywords.length === 0) && (
                       <button
-                        onClick={() => extractKeywordsForSentence(sentence)}
-                        disabled={extractingKeywords === sentence.id}
-                        className="flex items-center px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors disabled:opacity-50"
+                        onClick={() => setEditingKeywords(editingKeywords === sentence.id ? null : sentence.id)}
+                        className="ml-3 text-xs text-gray-500 hover:text-blue-600 transition-colors"
                       >
-                        {extractingKeywords === sentence.id ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                            추출중...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            AI 키워드 추출
-                          </>
-                        )}
+                        {editingKeywords === sentence.id ? '완료' : '편집'}
                       </button>
-                    )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {(!sentence.keywords || sentence.keywords.length === 0) && (
+                        <button
+                          onClick={() => extractKeywordsForSentence(sentence)}
+                          disabled={extractingKeywords === sentence.id}
+                          className="flex items-center px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors disabled:opacity-50"
+                        >
+                          {extractingKeywords === sentence.id ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                              추출중...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              AI 키워드 추출
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Instruction for text selection */}
+                  {editingKeywords !== sentence.id && (
+                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center text-sm text-blue-700">
+                        <Lightbulb className="w-4 h-4 mr-2 text-blue-600" />
+                        <span>
+                          <strong>💡 팁:</strong> 문장에서 원하는 부분을 드래그하면 키워드로 추가하고 AI 설명을 받을 수 있습니다!
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   
                   {sentence.keywords && sentence.keywords.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {sentence.keywords.slice(0, expandedSentence === sentence.id ? undefined : 3).map((keyword, idx) => (
-                        <span
+                        <div
                           key={idx}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium"
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium group"
                         >
                           <Star className="w-3 h-3 mr-1" />
-                          {keyword}
-                        </span>
+                          <span>{keyword}</span>
+                          {editingKeywords === sentence.id && (
+                            <button
+                              onClick={() => removeKeyword(sentence.id, keyword)}
+                              className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       ))}
                       {sentence.keywords.length > 3 && expandedSentence !== sentence.id && (
                         <button
@@ -304,7 +404,7 @@ export function Sentences() {
                     </div>
                   ) : (
                     <div className="text-sm text-gray-500 italic">
-                      키워드가 없습니다. AI 키워드 추출 버튼을 눌러보세요.
+                      키워드가 없습니다. 문장을 드래그하거나 AI 키워드 추출 버튼을 눌러보세요.
                     </div>
                   )}
                 </div>
@@ -315,9 +415,17 @@ export function Sentences() {
                     <h4 className="text-sm font-semibold text-blue-900 mb-3">모든 핵심 표현</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {sentence.keywords.map((keyword, idx) => (
-                        <div key={idx} className="flex items-start bg-white rounded-lg p-3 shadow-sm">
+                        <div key={idx} className="flex items-start bg-white rounded-lg p-3 shadow-sm group">
                           <Star className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
-                          <span className="text-sm text-blue-800 font-medium">{keyword}</span>
+                          <span className="text-sm text-blue-800 font-medium flex-1">{keyword}</span>
+                          {editingKeywords === sentence.id && (
+                            <button
+                              onClick={() => removeKeyword(sentence.id, keyword)}
+                              className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -460,6 +568,42 @@ export function Sentences() {
             <Shuffle className="w-5 h-5 mr-2" />
             퀴즈
           </button>
+        </div>
+      </div>
+
+      {/* User Drag Selection Feature Info */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+        <div className="flex items-start">
+          <div className="p-2 bg-green-100 rounded-lg">
+            <Lightbulb className="w-6 h-6 text-green-600" />
+          </div>
+          <div className="ml-4 flex-1">
+            <h3 className="text-lg font-semibold text-green-900 mb-2">
+              🎯 새로운 기능: 드래그로 키워드 추가
+            </h3>
+            <p className="text-green-700 mb-3">
+              이제 문장에서 원하는 부분을 마우스로 드래그하면 키워드로 추가하고 AI가 상세한 설명을 제공합니다! 
+              더 직관적이고 개인화된 학습이 가능해졌습니다.
+            </p>
+            <div className="flex flex-wrap gap-3 text-sm text-green-600">
+              <span className="flex items-center bg-white px-3 py-1 rounded-full">
+                <Star className="w-4 h-4 mr-1" />
+                드래그로 선택
+              </span>
+              <span className="flex items-center bg-white px-3 py-1 rounded-full">
+                <Lightbulb className="w-4 h-4 mr-1" />
+                AI 상세 설명
+              </span>
+              <span className="flex items-center bg-white px-3 py-1 rounded-full">
+                <BookOpen className="w-4 h-4 mr-1" />
+                사용 예문 제공
+              </span>
+              <span className="flex items-center bg-white px-3 py-1 rounded-full">
+                <Tag className="w-4 h-4 mr-1" />
+                자동 키워드 저장
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

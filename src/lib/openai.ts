@@ -19,6 +19,13 @@ export interface KeywordExtractionResponse {
   explanation?: string;
 }
 
+export interface KeywordExplanationResponse {
+  explanation: string;
+  usage_examples?: string[];
+  grammar_notes?: string;
+  similar_expressions?: string[];
+}
+
 // Fallback translations for common phrases when API is unavailable
 const fallbackTranslations: Record<string, string> = {
   'hello': '안녕하세요',
@@ -183,6 +190,131 @@ Keywords: [key expressions separated by commas]`
       throw new Error(`번역 실패: ${error.message}`);
     }
     throw new Error('번역에 실패했습니다. 네트워크 연결을 확인해주세요.');
+  }
+}
+
+export async function explainKeyword(
+  keyword: string,
+  originalSentence: string,
+  targetLang: string
+): Promise<KeywordExplanationResponse> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인해주세요.');
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a language learning expert. Explain the selected ${targetLang} expression/phrase in Korean for language learners.
+
+Return response in JSON format with these fields:
+- explanation: detailed explanation in Korean about the meaning, usage, and context
+- usage_examples: array of 2-3 example sentences using this expression (in ${targetLang})
+- grammar_notes: grammar notes or patterns related to this expression (optional)
+- similar_expressions: array of similar expressions or synonyms (optional)
+
+Focus on practical usage and learning tips.`
+          },
+          {
+            role: 'user',
+            content: `Selected expression: "${keyword}"\nOriginal sentence: "${originalSentence}"\nPlease explain this expression for Korean language learners.`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 800,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Handle quota exceeded error specifically
+      if (errorData.error?.code === 'insufficient_quota' || 
+          errorData.error?.message?.includes('exceeded your current quota')) {
+        console.warn('OpenAI API quota exceeded, providing basic explanation');
+        return {
+          explanation: `"${keyword}"에 대한 상세 설명을 제공할 수 없습니다. API 사용량이 초과되었습니다. 이 표현을 사전에서 찾아보시거나 나중에 다시 시도해주세요.`,
+          usage_examples: [`Example: ${originalSentence}`],
+          grammar_notes: "문법 설명을 사용할 수 없습니다.",
+          similar_expressions: []
+        };
+      }
+      
+      throw new Error(`OpenAI API 오류: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+      const parsed = JSON.parse(content);
+      return {
+        explanation: parsed.explanation || `"${keyword}"에 대한 설명입니다.`,
+        usage_examples: parsed.usage_examples || [],
+        grammar_notes: parsed.grammar_notes,
+        similar_expressions: parsed.similar_expressions || []
+      };
+    } catch (parseError) {
+      // If JSON parsing fails, extract information from text
+      const lines = content.split('\n').filter(line => line.trim());
+      let explanation = `"${keyword}"에 대한 설명입니다.`;
+      let examples: string[] = [];
+      let grammarNotes = '';
+      let similarExpressions: string[] = [];
+      
+      for (const line of lines) {
+        if (line.toLowerCase().includes('explanation') || line.includes('설명')) {
+          explanation = line.replace(/^.*?[:：]\s*/, '').trim();
+        } else if (line.toLowerCase().includes('example') || line.includes('예문')) {
+          const example = line.replace(/^.*?[:：]\s*/, '').trim();
+          if (example && !example.toLowerCase().includes('example')) {
+            examples.push(example);
+          }
+        } else if (line.toLowerCase().includes('grammar') || line.includes('문법')) {
+          grammarNotes = line.replace(/^.*?[:：]\s*/, '').trim();
+        } else if (line.toLowerCase().includes('similar') || line.includes('유사')) {
+          const similar = line.replace(/^.*?[:：]\s*/, '').trim();
+          if (similar) {
+            similarExpressions = similar.split(',').map(s => s.trim()).filter(s => s.length > 0);
+          }
+        }
+      }
+      
+      return {
+        explanation: explanation || extractCleanTranslation(content),
+        usage_examples: examples.length > 0 ? examples : [`Example: ${originalSentence}`],
+        grammar_notes: grammarNotes || undefined,
+        similar_expressions: similarExpressions.length > 0 ? similarExpressions : undefined
+      };
+    }
+  } catch (error) {
+    console.error('Keyword explanation error:', error);
+    
+    // Provide fallback explanation for quota/network errors
+    if (error instanceof Error && 
+        (error.message.includes('quota') || error.message.includes('network') || error.message.includes('fetch'))) {
+      console.warn('Using fallback keyword explanation due to API unavailability');
+      return {
+        explanation: `"${keyword}"에 대한 상세 설명을 제공할 수 없습니다. 네트워크 연결을 확인하거나 나중에 다시 시도해주세요.`,
+        usage_examples: [`Example: ${originalSentence}`],
+        grammar_notes: "문법 설명을 사용할 수 없습니다.",
+        similar_expressions: []
+      };
+    }
+    
+    if (error instanceof Error) {
+      throw new Error(`키워드 설명 실패: ${error.message}`);
+    }
+    throw new Error('키워드 설명에 실패했습니다. 네트워크 연결을 확인해주세요.');
   }
 }
 
