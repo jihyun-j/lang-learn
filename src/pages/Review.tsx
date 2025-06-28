@@ -121,15 +121,47 @@ export function Review() {
     }
   };
 
+  // Enhanced text-to-speech function with proper language support
   const playOriginalAudio = () => {
-    // In a real app, you'd use text-to-speech API
-    const utterance = new SpeechSynthesisUtterance(currentSentence?.english_text);
-    utterance.lang = selectedLanguage === '영어' ? 'en-US' : 
-                    selectedLanguage === '일본어' ? 'ja-JP' :
-                    selectedLanguage === '중국어' ? 'zh-CN' :
-                    selectedLanguage === '프랑스어' ? 'fr-FR' :
-                    selectedLanguage === '독일어' ? 'de-DE' :
-                    selectedLanguage === '스페인어' ? 'es-ES' : 'en-US';
+    if (!currentSentence?.english_text) return;
+
+    // Language code mapping for better TTS support
+    const languageMap: Record<string, string> = {
+      '영어': 'en-US',
+      '일본어': 'ja-JP',
+      '중국어': 'zh-CN',
+      '프랑스어': 'fr-FR',
+      '독일어': 'de-DE',
+      '스페인어': 'es-ES',
+      '이탈리아어': 'it-IT',
+      '러시아어': 'ru-RU',
+      '포르투갈어': 'pt-BR',
+      '아랍어': 'ar-SA'
+    };
+
+    const utterance = new SpeechSynthesisUtterance(currentSentence.english_text);
+    utterance.lang = languageMap[selectedLanguage] || 'en-US';
+    
+    // Set speech rate and pitch for better pronunciation
+    utterance.rate = 0.8; // Slightly slower for learning
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Handle errors
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      alert(`발음 재생에 실패했습니다. ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`);
+    };
+
+    // Check if voices are available and select the best one
+    const voices = speechSynthesis.getVoices();
+    const targetLang = languageMap[selectedLanguage] || 'en-US';
+    const voice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    
+    if (voice) {
+      utterance.voice = voice;
+    }
+
     speechSynthesis.speak(utterance);
   };
 
@@ -170,25 +202,25 @@ export function Review() {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="space-y-8">
-            {/* Korean Translation (Question) */}
+            {/* Korean Translation (Question) with Audio Button */}
             <div className="text-center bg-blue-50 rounded-lg p-8">
               <h2 className="text-sm font-medium text-blue-600 mb-2">
                 다음 문장을 {selectedLanguage}로 말해보세요
               </h2>
-              <p className="text-2xl font-bold text-blue-900">{currentSentence.korean_translation}</p>
-            </div>
-
-            {/* Original Sentence Display */}
-            <div className="text-center bg-gray-50 rounded-lg p-6">
-              <h3 className="text-sm font-medium text-gray-600 mb-2">정답</h3>
-              <p className="text-lg font-medium text-gray-900">{currentSentence.english_text}</p>
+              <p className="text-2xl font-bold text-blue-900 mb-4">{currentSentence.korean_translation}</p>
+              
+              {/* Moved pronunciation button here */}
               <button
                 onClick={playOriginalAudio}
-                className="mt-3 flex items-center justify-center mx-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 <Volume2 className="w-4 h-4 mr-2" />
                 발음 듣기
               </button>
+              
+              <div className="mt-4 text-center">
+                <p className="text-sm text-blue-700 font-medium">정답: {currentSentence.english_text}</p>
+              </div>
             </div>
 
             {/* Recording Section */}
@@ -316,7 +348,7 @@ export function Review() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
             <div className="flex items-start">
               <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>정답을 먼저 들어보고 따라 말해보세요</p>
+              <p>발음 듣기 버튼으로 정답을 먼저 들어보세요</p>
             </div>
             <div className="flex items-start">
               <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
