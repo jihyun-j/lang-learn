@@ -51,6 +51,15 @@ const fallbackKeywordExplanations: Record<string, KeywordExplanation> = {
   }
 };
 
+// Fallback keywords for common sentences
+const fallbackKeywords: Record<string, string[]> = {
+  'hello': ['hello', 'greeting'],
+  'thank you': ['thank', 'gratitude'],
+  'good morning': ['good', 'morning', 'greeting'],
+  'how are you': ['how', 'are', 'question'],
+  'nice to meet you': ['nice', 'meet', 'greeting']
+};
+
 function getFallbackTranslation(sentence: string): string {
   const lowerSentence = sentence.toLowerCase().trim();
   return fallbackTranslations[lowerSentence] || `번역 서비스를 일시적으로 사용할 수 없습니다. "${sentence}"의 번역을 위해 나중에 다시 시도해주세요.`;
@@ -64,6 +73,23 @@ function getFallbackKeywordExplanation(keyword: string): KeywordExplanation {
     grammar_notes: '자세한 문법 설명을 위해 나중에 다시 시도해주세요.',
     similar_expressions: []
   };
+}
+
+function getFallbackKeywords(text: string): string[] {
+  const lowerText = text.toLowerCase().trim();
+  
+  // Check for exact matches first
+  if (fallbackKeywords[lowerText]) {
+    return fallbackKeywords[lowerText];
+  }
+  
+  // Extract basic keywords from the text
+  const words = text.toLowerCase().split(/\s+/).filter(word => 
+    word.length > 2 && 
+    !['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'].includes(word)
+  );
+  
+  return words.slice(0, 5); // Return up to 5 keywords
 }
 
 // Helper function to clean and extract translation from response
@@ -427,6 +453,103 @@ Provide clear, educational explanations that help language learners understand t
       throw new Error(`키워드 설명 실패: ${error.message}`);
     }
     throw new Error('키워드 설명에 실패했습니다. 네트워크 연결을 확인해주세요.');
+  }
+}
+
+export async function extractKeywords(
+  originalText: string,
+  translation: string,
+  targetLang: string
+): Promise<string[]> {
+  if (!OPENAI_API_KEY) {
+    console.warn('OpenAI API key not available, using fallback keyword extraction');
+    return getFallbackKeywords(originalText);
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a language learning assistant. Extract 3-5 key words or phrases from the given ${targetLang} text that would be most useful for language learners to understand and remember.
+
+Focus on:
+- Important vocabulary words
+- Useful phrases or expressions
+- Grammar patterns
+- Words that are commonly used in daily conversation
+
+Return only a JSON array of strings containing the keywords, no additional formatting or explanation.
+
+Example: ["keyword1", "keyword2", "keyword3"]`
+          },
+          {
+            role: 'user',
+            content: `Original text: "${originalText}"\nTranslation: "${translation}"`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Handle quota exceeded error specifically
+      if (errorData.error?.code === 'insufficient_quota' || 
+          errorData.error?.message?.includes('exceeded your current quota')) {
+        console.warn('OpenAI API quota exceeded, using fallback keyword extraction');
+        return getFallbackKeywords(originalText);
+      }
+      
+      throw new Error(`OpenAI API 오류: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(keyword => typeof keyword === 'string' && keyword.trim().length > 0);
+      }
+      // If not an array, try to extract keywords from the content
+      return getFallbackKeywords(originalText);
+    } catch (parseError) {
+      // If JSON parsing fails, try to extract keywords from the response text
+      const lines = content.split('\n').filter(line => line.trim());
+      const keywords: string[] = [];
+      
+      for (const line of lines) {
+        // Look for lines that might contain keywords
+        const cleanLine = line.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
+        if (cleanLine && cleanLine.length > 0 && cleanLine.length < 50) {
+          keywords.push(cleanLine);
+        }
+      }
+      
+      return keywords.length > 0 ? keywords.slice(0, 5) : getFallbackKeywords(originalText);
+    }
+  } catch (error) {
+    console.error('Keyword extraction error:', error);
+    
+    // Provide fallback keywords for quota/network errors
+    if (error instanceof Error && 
+        (error.message.includes('quota') || error.message.includes('network') || error.message.includes('fetch'))) {
+      console.warn('Using fallback keyword extraction due to API unavailability');
+      return getFallbackKeywords(originalText);
+    }
+    
+    // For any other error, return fallback keywords
+    return getFallbackKeywords(originalText);
   }
 }
 
