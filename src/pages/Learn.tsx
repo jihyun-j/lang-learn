@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Sparkles, BookOpen, Check, Globe, Volume2 } from 'lucide-react';
 import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../hooks/useLanguage';
 
 export function Learn() {
   const [sentence, setSentence] = useState('');
@@ -11,30 +12,7 @@ export function Learn() {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const { user } = useAuth();
-
-  // Get user's target languages
-  const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
-  const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
-  
-  // Get current selected language from localStorage or default to first language
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    const saved = localStorage.getItem('selectedLanguage');
-    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
-  });
-
-  // Listen for language changes from the sidebar
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setSelectedLanguage(event.detail);
-      // Clear current translation when language changes
-      setTranslation('');
-    };
-
-    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-    };
-  }, []);
+  const { selectedLanguage } = useLanguage();
 
   const handleTranslate = async () => {
     if (!sentence.trim()) return;

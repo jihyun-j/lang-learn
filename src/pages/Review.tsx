@@ -4,6 +4,7 @@ import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { transcribeAudio, compareSentences } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
 
 export function Review() {
@@ -17,14 +18,7 @@ export function Review() {
   } | null>(null);
   const [error, setError] = useState('');
   const { user } = useAuth();
-
-  // Get current selected language from localStorage
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    const saved = localStorage.getItem('selectedLanguage');
-    const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
-    const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
-    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
-  });
+  const { selectedLanguage } = useLanguage();
   
   const {
     isRecording,
@@ -36,24 +30,10 @@ export function Review() {
 
   // Load random sentence for review
   useEffect(() => {
-    loadRandomSentence();
+    if (selectedLanguage) {
+      loadRandomSentence();
+    }
   }, [user, selectedLanguage]);
-
-  // Listen for language changes from the sidebar
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setSelectedLanguage(event.detail);
-      setReviewResult(null);
-      setTranscription('');
-      setError('');
-      clearRecording();
-    };
-
-    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-    };
-  }, [clearRecording]);
 
   const loadRandomSentence = async () => {
     if (!user) return;

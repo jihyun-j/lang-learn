@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, BookOpen, List, User, LogOut, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,18 +10,9 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, signOut } = useAuth();
+  const { selectedLanguage, setSelectedLanguage, availableLanguages } = useLanguage();
   const location = useLocation();
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
-
-  // Get user's target languages
-  const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
-  const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
-  
-  // Get current selected language from localStorage or default to first language
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    const saved = localStorage.getItem('selectedLanguage');
-    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
-  });
 
   const navigation = [
     { name: '홈', href: '/', icon: Home },
@@ -36,11 +28,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleLanguageSelect = (language: string) => {
     setSelectedLanguage(language);
-    localStorage.setItem('selectedLanguage', language);
     setIsLanguageDropdownOpen(false);
-    
-    // Dispatch custom event to notify other components
-    window.dispatchEvent(new CustomEvent('languageChanged', { detail: language }));
   };
 
   return (
@@ -55,7 +43,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Language Selector */}
-          {languages.length > 1 && (
+          {availableLanguages.length > 1 && (
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="relative">
                 <button
@@ -73,7 +61,7 @@ export function Layout({ children }: LayoutProps) {
 
                 {isLanguageDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                    {languages.map((language) => (
+                    {availableLanguages.map((language) => (
                       <button
                         key={language}
                         onClick={() => handleLanguageSelect(language)}
@@ -88,6 +76,16 @@ export function Layout({ children }: LayoutProps) {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Single Language Display */}
+          {availableLanguages.length === 1 && (
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 rounded-lg">
+                <Globe className="w-4 h-4 mr-2 text-blue-600" />
+                <span className="text-blue-700">{selectedLanguage}</span>
               </div>
             </div>
           )}

@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Brain, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../hooks/useLanguage';
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 interface ProfileStats {
@@ -56,6 +57,7 @@ export function Profile() {
   });
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
   const { user } = useAuth();
+  const { selectedLanguage } = useLanguage();
 
   const availableLanguages = [
     '영어', '일본어', '중국어', '프랑스어', '독일어', '스페인어', '이탈리아어', '러시아어', '포르투갈어', '아랍어'
@@ -66,7 +68,7 @@ export function Profile() {
       loadProfileData();
       loadStatsData();
     }
-  }, [user, timeRange]);
+  }, [user, timeRange, selectedLanguage]);
 
   const loadProfileData = async () => {
     if (!user) return;
@@ -97,15 +99,16 @@ export function Profile() {
 
     setLoading(true);
     try {
-      // Load sentences
+      // Load sentences for selected language
       const { data: sentences, error: sentencesError } = await supabase
         .from('sentences')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('target_language', selectedLanguage);
 
       if (sentencesError) throw sentencesError;
 
-      // Load review sessions
+      // Load review sessions for selected language
       const { data: reviews, error: reviewsError } = await supabase
         .from('review_sessions')
         .select('*')
@@ -114,11 +117,18 @@ export function Profile() {
 
       if (reviewsError) throw reviewsError;
 
+      // Filter reviews by language (need to join with sentences)
+      let languageReviews = reviews || [];
+      if (reviews && reviews.length > 0) {
+        const sentenceIds = sentences?.map(s => s.id) || [];
+        languageReviews = reviews.filter(r => sentenceIds.includes(r.sentence_id));
+      }
+
       // Calculate basic stats
       const totalSentences = sentences?.length || 0;
-      const totalReviews = reviews?.length || 0;
-      const averageAccuracy = reviews?.length > 0 
-        ? Math.round(reviews.reduce((acc, r) => acc + r.overall_score, 0) / reviews.length)
+      const totalReviews = languageReviews.length;
+      const averageAccuracy = languageReviews.length > 0 
+        ? Math.round(languageReviews.reduce((acc, r) => acc + r.overall_score, 0) / languageReviews.length)
         : 0;
 
       // Generate weekly data
@@ -132,7 +142,7 @@ export function Profile() {
           format(new Date(s.created_at), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
         ).length || 0;
         
-        const dayReviews = reviews?.filter(r => 
+        const dayReviews = languageReviews.filter(r => 
           format(new Date(r.created_at), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
         ) || [];
         
@@ -157,7 +167,7 @@ export function Profile() {
         { range: '0-59%', count: 0 },
       ];
 
-      reviews?.forEach(review => {
+      languageReviews.forEach(review => {
         const accuracy = review.overall_score;
         if (accuracy >= 90) accuracyRanges[0].count++;
         else if (accuracy >= 80) accuracyRanges[1].count++;
@@ -190,7 +200,7 @@ export function Profile() {
           type: '새 문장',
           sentence: s.english_text,
         })) || [],
-        ...reviews?.slice(0, 3).map(r => ({
+        ...languageReviews.slice(0, 3).map(r => ({
           date: format(new Date(r.created_at), 'MM.dd'),
           type: '복습',
           sentence: '발음 연습',
@@ -308,6 +318,19 @@ export function Profile() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900">프로필</h1>
         <p className="mt-2 text-lg text-gray-600">개인 정보와 학습 통계를 확인하세요</p>
+      </div>
+
+      {/* Current Language Display */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6">
+        <div className="flex items-center justify-center">
+          <Globe className="w-6 h-6 text-blue-600 mr-3" />
+          <h2 className="text-2xl font-bold text-gray-900">
+            현재 선택된 언어: <span className="text-blue-600">{selectedLanguage}</span>
+          </h2>
+        </div>
+        <p className="text-center text-gray-600 mt-2">
+          아래 통계는 {selectedLanguage} 학습 데이터를 기준으로 합니다
+        </p>
       </div>
 
       {/* Profile Information */}
@@ -442,7 +465,7 @@ export function Profile() {
       {/* Learning Statistics Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">학습 통계</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{selectedLanguage} 학습 통계</h2>
           <p className="mt-1 text-gray-600">학습 진도와 성과를 한눈에 확인하세요</p>
         </div>
         <div className="mt-4 sm:mt-0">

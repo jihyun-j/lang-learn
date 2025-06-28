@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
 import { format } from 'date-fns';
 
@@ -14,35 +15,15 @@ export function Sentences() {
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [totalCount, setTotalCount] = useState(0);
   const { user } = useAuth();
-
-  // Get current selected language from localStorage
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    const saved = localStorage.getItem('selectedLanguage');
-    const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
-    const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
-    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
-  });
+  const { selectedLanguage } = useLanguage();
 
   const itemsPerPage = 12;
 
   useEffect(() => {
-    if (user) {
+    if (user && selectedLanguage) {
       loadSentences();
     }
   }, [user, currentPage, searchTerm, difficultyFilter, selectedLanguage]);
-
-  // Listen for language changes from the sidebar
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setSelectedLanguage(event.detail);
-      setCurrentPage(1); // Reset to first page when language changes
-    };
-
-    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-    };
-  }, []);
 
   const loadSentences = async () => {
     if (!user) return;

@@ -2,39 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, RotateCcw, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../hooks/useLanguage';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 
 export function Home() {
   const { user } = useAuth();
+  const { selectedLanguage } = useLanguage();
   const [todaySentences, setTodaySentences] = useState(0);
   const [todayReviews, setTodayReviews] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Get user's target languages
-  const targetLanguages = user?.user_metadata?.target_languages || [user?.user_metadata?.target_language || '영어'];
-  const languages = Array.isArray(targetLanguages) ? targetLanguages : [targetLanguages];
-  
-  // Get current selected language from localStorage or default to first language
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    const saved = localStorage.getItem('selectedLanguage');
-    return saved && languages.includes(saved) ? saved : languages[0] || '영어';
-  });
-
-  // Listen for language changes from the sidebar
   useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setSelectedLanguage(event.detail);
-    };
-
-    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (user) {
+    if (user && selectedLanguage) {
       loadTodayStats();
     }
   }, [user, selectedLanguage]);
@@ -97,11 +77,24 @@ export function Home() {
         </p>
       </div>
 
+      {/* Current Language Display */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6">
+        <div className="flex items-center justify-center">
+          <Globe className="w-6 h-6 text-blue-600 mr-3" />
+          <h2 className="text-2xl font-bold text-gray-900">
+            현재 학습 언어: <span className="text-blue-600">{selectedLanguage}</span>
+          </h2>
+        </div>
+        <p className="text-center text-gray-600 mt-2">
+          사이드바에서 다른 언어로 변경할 수 있습니다
+        </p>
+      </div>
+
       {/* Today's Activity */}
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            오늘의 학습 현황
+            {selectedLanguage} 오늘의 학습 현황
           </h3>
           <p className="text-gray-600">오늘 하루 동안의 학습 활동을 확인해보세요</p>
         </div>
