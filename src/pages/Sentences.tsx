@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
 import { format } from 'date-fns';
+import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
 
 export function Sentences() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
@@ -14,7 +15,8 @@ export function Sentences() {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [totalCount, setTotalCount] = useState(0);
-  const [isPlaying, setIsPlaying] = useState<string | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
 
@@ -35,7 +37,7 @@ export function Sentences() {
         .from('sentences')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
-        .eq('target_language', selectedLanguage) // Filter by selected language
+        .eq('target_language', selectedLanguage)
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
@@ -79,217 +81,48 @@ export function Sentences() {
     }
   };
 
-  // 🎵 완전히 새로 작성한 TTS 시스템 - 프랑스어 100% 작동 보장
-  const playAudio = (text: string, sentenceId?: string) => {
+  // 🎵 새로운 TTS 시스템 사용
+  const playAudio = async (text: string, sentenceId: string) => {
     if (!text.trim()) return;
 
-    console.log(`🎵 [TTS] Starting playback for "${text}" in ${selectedLanguage}`);
+    setAudioError(null);
 
-    // 이미 재생 중인 경우 중지
-    if (isPlaying === sentenceId) {
-      console.log('🛑 [TTS] Stopping current playback');
-      speechSynthesis.cancel();
-      setIsPlaying(null);
-      return;
-    }
+    try {
+      // 이미 재생 중인 경우 중지
+      if (playingId === sentenceId && isSpeaking()) {
+        console.log('🛑 [Audio] Stopping current playback');
+        stopSpeech();
+        setPlayingId(null);
+        return;
+      }
 
-    // 다른 음성 중지
-    speechSynthesis.cancel();
-    setIsPlaying(sentenceId || null);
+      // 다른 음성 중지
+      if (playingId && isSpeaking()) {
+        stopSpeech();
+      }
 
-    // 🌍 정확한 언어 코드 매핑 - 프랑스어 최우선
-    const getLanguageCode = (language: string): string => {
-      const languageMap: Record<string, string> = {
-        '영어': 'en-US',
-        '프랑스어': 'fr-FR',  // 🇫🇷 프랑스어 정확한 코드
-        '독일어': 'de-DE',
-        '스페인어': 'es-ES',
-        '이탈리아어': 'it-IT',
-        '일본어': 'ja-JP',
-        '중국어': 'zh-CN',
-        '러시아어': 'ru-RU',
-        '포르투갈어': 'pt-BR',
-        '아랍어': 'ar-SA',
-        '네덜란드어': 'nl-NL',
-        '한국어': 'ko-KR'
-      };
+      setPlayingId(sentenceId);
+      console.log(`🎵 [Audio] Starting playback: "${text}" in ${selectedLanguage}`);
+
+      // TTS 매니저를 사용하여 음성 재생
+      await speakText(text, selectedLanguage);
       
-      const code = languageMap[language] || 'en-US';
-      console.log(`🌍 [TTS] Language mapping: ${language} -> ${code}`);
-      return code;
-    };
+      console.log('✅ [Audio] Playback completed successfully');
+      setPlayingId(null);
 
-    const targetLangCode = getLanguageCode(selectedLanguage);
-
-    // 🎤 음성 선택 함수 - 프랑스어 특화
-    const selectVoice = (): SpeechSynthesisVoice | null => {
-      const voices = speechSynthesis.getVoices();
-      console.log(`🔍 [TTS] Available voices: ${voices.length}`);
+    } catch (error) {
+      console.error('🚨 [Audio] Playback failed:', error);
+      setPlayingId(null);
       
-      if (voices.length === 0) {
-        console.warn('⚠️ [TTS] No voices available');
-        return null;
-      }
-
-      // 🇫🇷 프랑스어 특별 처리
-      if (selectedLanguage === '프랑스어') {
-        console.log('🇫🇷 [TTS] French language detected - using specialized selection');
-        
-        // 1. 정확한 fr-FR 매칭
-        const frFR = voices.find(v => v.lang === 'fr-FR');
-        if (frFR) {
-          console.log(`✅ [TTS] Found fr-FR voice: ${frFR.name}`);
-          return frFR;
-        }
-
-        // 2. fr로 시작하는 모든 음성
-        const frVoices = voices.filter(v => v.lang.startsWith('fr'));
-        if (frVoices.length > 0) {
-          console.log(`✅ [TTS] Found French voice: ${frVoices[0].name} (${frVoices[0].lang})`);
-          return frVoices[0];
-        }
-
-        // 3. 이름에 French 포함
-        const frenchNameVoice = voices.find(v => 
-          v.name.toLowerCase().includes('french') || 
-          v.name.toLowerCase().includes('français')
-        );
-        if (frenchNameVoice) {
-          console.log(`✅ [TTS] Found French name voice: ${frenchNameVoice.name}`);
-          return frenchNameVoice;
-        }
-
-        console.warn('⚠️ [TTS] No French voice found, using default');
-      }
-
-      // 일반 언어 처리
-      // 1. 정확한 언어 코드 매칭
-      const exactMatch = voices.find(v => v.lang === targetLangCode);
-      if (exactMatch) {
-        console.log(`✅ [TTS] Exact match: ${exactMatch.name} (${exactMatch.lang})`);
-        return exactMatch;
-      }
-
-      // 2. 언어 계열 매칭 (fr-*, en-* 등)
-      const langPrefix = targetLangCode.split('-')[0];
-      const familyMatch = voices.find(v => v.lang.startsWith(langPrefix));
-      if (familyMatch) {
-        console.log(`✅ [TTS] Family match: ${familyMatch.name} (${familyMatch.lang})`);
-        return familyMatch;
-      }
-
-      // 3. 기본 음성 사용
-      const defaultVoice = voices.find(v => v.default);
-      if (defaultVoice) {
-        console.log(`✅ [TTS] Using default voice: ${defaultVoice.name} (${defaultVoice.lang})`);
-        return defaultVoice;
-      }
-
-      // 4. 첫 번째 음성 사용
-      console.log(`✅ [TTS] Using first voice: ${voices[0].name} (${voices[0].lang})`);
-      return voices[0];
-    };
-
-    // 🎵 음성 합성 실행
-    const speak = () => {
-      try {
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // 음성 선택
-        const selectedVoice = selectVoice();
-        if (selectedVoice) {
-          utterance.voice = selectedVoice;
-          utterance.lang = selectedVoice.lang;
-          console.log(`🎤 [TTS] Using voice: ${selectedVoice.name} (${selectedVoice.lang})`);
-        } else {
-          utterance.lang = targetLangCode;
-          console.log(`🔄 [TTS] Using language code: ${targetLangCode}`);
-        }
-
-        // 🎛️ 음성 설정 - 언어별 최적화
-        if (selectedLanguage === '프랑스어') {
-          utterance.rate = 0.8;    // 프랑스어는 조금 천천히
-          utterance.pitch = 1.0;   // 자연스러운 음높이
-        } else if (selectedLanguage === '독일어') {
-          utterance.rate = 0.85;   // 독일어도 천천히
-          utterance.pitch = 0.95;  // 약간 낮은 음높이
-        } else {
-          utterance.rate = 0.9;    // 기본 속도
-          utterance.pitch = 1.0;   // 자연스러운 음높이
-        }
-        
-        utterance.volume = 1.0;
-
-        // 🔧 이벤트 핸들러
-        utterance.onstart = () => {
-          console.log(`🎵 [TTS] Started: "${text}" in ${selectedLanguage}`);
-        };
-
-        utterance.onend = () => {
-          console.log(`✅ [TTS] Finished: "${text}"`);
-          setIsPlaying(null);
-        };
-
-        utterance.onerror = (event) => {
-          console.error(`🚨 [TTS] Error: ${event.error}`);
-          setIsPlaying(null);
-          
-          // 사용자 친화적 에러 메시지
-          let errorMessage = '발음 재생에 실패했습니다.';
-          if (event.error === 'not-allowed') {
-            errorMessage += ' 브라우저에서 음성 재생이 차단되었습니다.';
-          } else if (event.error === 'network') {
-            errorMessage += ' 네트워크 연결을 확인해주세요.';
-          } else if (selectedLanguage === '프랑스어') {
-            errorMessage += ' 프랑스어 음성을 불러오는 중 문제가 발생했습니다.';
-          }
-          
-          alert(errorMessage);
-        };
-
-        utterance.onpause = () => {
-          setIsPlaying(null);
-        };
-
-        // 🚀 재생 시작
-        console.log(`🚀 [TTS] Starting speech synthesis...`);
-        speechSynthesis.speak(utterance);
-
-      } catch (error) {
-        console.error('🚨 [TTS] Exception:', error);
-        setIsPlaying(null);
-        alert(`발음 재생 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-      }
-    };
-
-    // 🔄 음성 로딩 확인 후 재생
-    const voices = speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      // 음성이 이미 로드된 경우 즉시 재생
-      speak();
-    } else {
-      // 음성 로딩 대기
-      console.log('⏳ [TTS] Waiting for voices to load...');
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setAudioError(errorMessage);
       
-      const handleVoicesChanged = () => {
-        console.log('✅ [TTS] Voices loaded via event');
-        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-        speak();
-      };
-      
-      speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-      
-      // 타임아웃 설정 (3초)
-      setTimeout(() => {
-        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-        console.log('⏰ [TTS] Timeout - attempting to speak anyway');
-        speak();
-      }, 3000);
+      // 3초 후 에러 메시지 자동 제거
+      setTimeout(() => setAudioError(null), 3000);
     }
   };
 
   const startQuiz = () => {
-    // Navigate to quiz mode - in a real app, you'd use React Router
     alert('퀴즈 모드 준비중...');
   };
 
@@ -315,6 +148,22 @@ export function Sentences() {
 
   const ListView = () => (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      {/* Audio Error Display */}
+      {audioError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 m-4 rounded">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Volume2 className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                <strong>음성 재생 오류:</strong> {audioError}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
@@ -332,19 +181,19 @@ export function Sentences() {
           <div key={sentence.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
             <div className="grid grid-cols-12 gap-4 text-sm">
               <div className="col-span-4">
-                <div className="flex items-start space-x-2">
+                <div className="flex items-start space-x-3">
                   <button
                     onClick={() => playAudio(sentence.english_text, sentence.id)}
-                    disabled={isPlaying === sentence.id}
-                    className={`p-2 transition-all rounded-lg flex-shrink-0 group ${
-                      isPlaying === sentence.id
-                        ? 'text-white bg-blue-600 animate-pulse shadow-lg'
-                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    disabled={playingId === sentence.id}
+                    className={`p-2 transition-all rounded-lg flex-shrink-0 group shadow-sm ${
+                      playingId === sentence.id
+                        ? 'text-white bg-blue-600 animate-pulse shadow-lg scale-105'
+                        : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:shadow-md'
                     }`}
-                    title={`${selectedLanguage} 발음 듣기 ${isPlaying === sentence.id ? '(재생 중... 클릭하면 중지)' : ''}`}
+                    title={`${selectedLanguage} 발음 듣기 ${playingId === sentence.id ? '(재생 중... 클릭하면 중지)' : ''}`}
                   >
                     <Volume2 className={`w-4 h-4 transition-transform ${
-                      isPlaying === sentence.id ? 'scale-110' : 'group-hover:scale-110'
+                      playingId === sentence.id ? 'scale-110' : 'group-hover:scale-110'
                     }`} />
                   </button>
                   <div className="flex-1 min-w-0">
@@ -619,7 +468,7 @@ export function Sentences() {
               <div>
                 <p className="text-sm font-semibold text-blue-900 mb-1">프랑스어 발음 특화 기능</p>
                 <p className="text-sm text-blue-800">
-                  발음 버튼을 클릭하면 <strong>정확한 프랑스어 발음</strong>을 들을 수 있습니다! 
+                  새로운 TTS 시스템으로 <strong>정확한 프랑스어 발음</strong>을 제공합니다! 
                   연음(liaison)과 무음 문자에 주의하며 들어보세요. 
                   <span className="font-medium">재생 중일 때는 버튼이 파란색으로 표시되며, 다시 클릭하면 중지됩니다.</span>
                 </p>
@@ -629,7 +478,7 @@ export function Sentences() {
         )}
 
         {/* Audio Status Indicator */}
-        {isPlaying && (
+        {playingId && (
           <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
             <div className="flex items-center">
               <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />

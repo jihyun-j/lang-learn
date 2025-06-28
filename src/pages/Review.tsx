@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
+import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
 
 export function Review() {
   const [currentSentence, setCurrentSentence] = useState<Sentence | null>(null);
@@ -17,6 +18,8 @@ export function Review() {
     feedback: string;
   } | null>(null);
   const [error, setError] = useState('');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
   
@@ -43,13 +46,12 @@ export function Review() {
         .from('sentences')
         .select('*')
         .eq('user_id', user.id)
-        .eq('target_language', selectedLanguage) // Filter by selected language
+        .eq('target_language', selectedLanguage)
         .order('created_at', { ascending: false })
-        .limit(10); // Get more sentences to randomize
+        .limit(10);
 
       if (error) throw error;
       if (data && data.length > 0) {
-        // Pick a random sentence from the results
         const randomIndex = Math.floor(Math.random() * data.length);
         setCurrentSentence(data[randomIndex]);
       }
@@ -65,11 +67,9 @@ export function Review() {
     setError('');
     
     try {
-      // Step 1: Transcribe audio using OpenAI Whisper
       const spokenText = await transcribeAudio(recording.blob);
       setTranscription(spokenText);
 
-      // Step 2: Compare with original sentence
       const comparisonResult = await compareSentences(
         currentSentence.english_text,
         spokenText
@@ -81,7 +81,6 @@ export function Review() {
         feedback: comparisonResult.feedback
       });
 
-      // Step 3: Save review session
       await supabase
         .from('review_sessions')
         .insert({
@@ -101,54 +100,47 @@ export function Review() {
     }
   };
 
-  // Enhanced text-to-speech function with proper language support
-  const playOriginalAudio = () => {
+  // 🎵 새로운 TTS 시스템 사용
+  const playOriginalAudio = async () => {
     if (!currentSentence?.english_text) return;
 
-    // Language code mapping for better TTS support
-    const languageMap: Record<string, string> = {
-      '영어': 'en-US',
-      '일본어': 'ja-JP',
-      '중국어': 'zh-CN',
-      '프랑스어': 'fr-FR',
-      '독일어': 'de-DE',
-      '스페인어': 'es-ES',
-      '이탈리아어': 'it-IT',
-      '러시아어': 'ru-RU',
-      '포르투갈어': 'pt-BR',
-      '아랍어': 'ar-SA'
-    };
+    setAudioError(null);
 
-    const utterance = new SpeechSynthesisUtterance(currentSentence.english_text);
-    utterance.lang = languageMap[selectedLanguage] || 'en-US';
-    
-    // Set speech rate and pitch for better pronunciation
-    utterance.rate = 0.8; // Slightly slower for learning
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    try {
+      // 이미 재생 중인 경우 중지
+      if (isPlayingAudio && isSpeaking()) {
+        console.log('🛑 [Audio] Stopping current playback');
+        stopSpeech();
+        setIsPlayingAudio(false);
+        return;
+      }
 
-    // Handle errors
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
-      alert(`발음 재생에 실패했습니다. ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`);
-    };
+      setIsPlayingAudio(true);
+      console.log(`🎵 [Audio] Starting playback: "${currentSentence.english_text}" in ${selectedLanguage}`);
 
-    // Check if voices are available and select the best one
-    const voices = speechSynthesis.getVoices();
-    const targetLang = languageMap[selectedLanguage] || 'en-US';
-    const voice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-    
-    if (voice) {
-      utterance.voice = voice;
+      // TTS 매니저를 사용하여 음성 재생
+      await speakText(currentSentence.english_text, selectedLanguage);
+      
+      console.log('✅ [Audio] Playback completed successfully');
+      setIsPlayingAudio(false);
+
+    } catch (error) {
+      console.error('🚨 [Audio] Playback failed:', error);
+      setIsPlayingAudio(false);
+      
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setAudioError(errorMessage);
+      
+      // 3초 후 에러 메시지 자동 제거
+      setTimeout(() => setAudioError(null), 3000);
     }
-
-    speechSynthesis.speak(utterance);
   };
 
   const nextSentence = () => {
     setReviewResult(null);
     setTranscription('');
     setError('');
+    setAudioError(null);
     clearRecording();
     loadRandomSentence();
   };
@@ -180,6 +172,22 @@ export function Review() {
       </div>
 
       <div className="max-w-4xl mx-auto">
+        {/* Audio Error Display */}
+        {audioError && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <Volume2 className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">
+                  <strong>음성 재생 오류:</strong> {audioError}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="space-y-8">
             {/* Korean Translation (Question) with Audio Button */}
@@ -192,10 +200,15 @@ export function Review() {
               {/* Pronunciation button */}
               <button
                 onClick={playOriginalAudio}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md"
+                disabled={isPlayingAudio}
+                className={`inline-flex items-center px-6 py-3 rounded-lg font-medium shadow-md transition-all ${
+                  isPlayingAudio
+                    ? 'bg-blue-700 text-white animate-pulse'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 <Volume2 className="w-5 h-5 mr-2" />
-                발음 듣기
+                {isPlayingAudio ? '재생 중...' : '발음 듣기'}
               </button>
             </div>
 
@@ -345,6 +358,22 @@ export function Review() {
               <p>정답은 분석 후에만 공개됩니다</p>
             </div>
           </div>
+
+          {/* Language-specific tip */}
+          {selectedLanguage === '프랑스어' && (
+            <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+              <div className="flex items-start">
+                <span className="text-2xl mr-3">🇫🇷</span>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900 mb-1">프랑스어 발음 특화 기능</p>
+                  <p className="text-sm text-blue-800">
+                    새로운 TTS 시스템으로 <strong>정확한 프랑스어 발음</strong>을 제공합니다! 
+                    연음(liaison)과 무음 문자에 주의하며 들어보세요.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

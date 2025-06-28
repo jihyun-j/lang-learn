@@ -4,6 +4,7 @@ import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
+import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
 
 export function Learn() {
   const [sentence, setSentence] = useState('');
@@ -11,6 +12,9 @@ export function Learn() {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isPlayingInput, setIsPlayingInput] = useState(false);
+  const [isPlayingResult, setIsPlayingResult] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
 
@@ -39,9 +43,9 @@ export function Learn() {
           user_id: user.id,
           english_text: sentence,
           korean_translation: translation,
-          keywords: [], // 빈 배열로 설정
+          keywords: [],
           difficulty: difficulty,
-          target_language: selectedLanguage, // Save the selected language
+          target_language: selectedLanguage,
         });
 
       if (error) throw error;
@@ -59,48 +63,57 @@ export function Learn() {
     }
   };
 
-  // Enhanced text-to-speech function with better language support
-  const playAudio = (text: string) => {
+  // 🎵 새로운 TTS 시스템 사용
+  const playAudio = async (text: string, isInput: boolean = false) => {
     if (!text.trim()) return;
 
-    // Language code mapping for better TTS support
-    const languageMap: Record<string, string> = {
-      '영어': 'en-US',
-      '일본어': 'ja-JP',
-      '중국어': 'zh-CN',
-      '프랑스어': 'fr-FR',
-      '독일어': 'de-DE',
-      '스페인어': 'es-ES',
-      '이탈리아어': 'it-IT',
-      '러시아어': 'ru-RU',
-      '포르투갈어': 'pt-BR',
-      '아랍어': 'ar-SA'
-    };
+    setAudioError(null);
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = languageMap[selectedLanguage] || 'en-US';
-    
-    // Set speech rate and pitch for better pronunciation
-    utterance.rate = 0.8; // Slightly slower for learning
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    try {
+      const currentlyPlaying = isInput ? isPlayingInput : isPlayingResult;
+      
+      // 이미 재생 중인 경우 중지
+      if (currentlyPlaying && isSpeaking()) {
+        console.log('🛑 [Audio] Stopping current playback');
+        stopSpeech();
+        setIsPlayingInput(false);
+        setIsPlayingResult(false);
+        return;
+      }
 
-    // Handle errors
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
-      alert(`발음 재생에 실패했습니다. ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`);
-    };
+      // 다른 음성 중지
+      if (isSpeaking()) {
+        stopSpeech();
+        setIsPlayingInput(false);
+        setIsPlayingResult(false);
+      }
 
-    // Check if voices are available
-    const voices = speechSynthesis.getVoices();
-    const targetLang = languageMap[selectedLanguage] || 'en-US';
-    const voice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-    
-    if (voice) {
-      utterance.voice = voice;
+      if (isInput) {
+        setIsPlayingInput(true);
+      } else {
+        setIsPlayingResult(true);
+      }
+
+      console.log(`🎵 [Audio] Starting playback: "${text}" in ${selectedLanguage}`);
+
+      // TTS 매니저를 사용하여 음성 재생
+      await speakText(text, selectedLanguage);
+      
+      console.log('✅ [Audio] Playback completed successfully');
+      setIsPlayingInput(false);
+      setIsPlayingResult(false);
+
+    } catch (error) {
+      console.error('🚨 [Audio] Playback failed:', error);
+      setIsPlayingInput(false);
+      setIsPlayingResult(false);
+      
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setAudioError(errorMessage);
+      
+      // 3초 후 에러 메시지 자동 제거
+      setTimeout(() => setAudioError(null), 3000);
     }
-
-    speechSynthesis.speak(utterance);
   };
 
   return (
@@ -114,6 +127,24 @@ export function Learn() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">오늘의 학습</h1>
         <p className="text-lg text-gray-600">새로운 문장을 입력하고 AI가 해석해드려요</p>
       </div>
+
+      {/* Audio Error Display */}
+      {audioError && (
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <Volume2 className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">
+                  <strong>음성 재생 오류:</strong> {audioError}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tips Section - Moved to top */}
       <div className="bg-blue-50 rounded-xl p-6">
@@ -176,9 +207,14 @@ export function Learn() {
                 />
                 {sentence.trim() && (
                   <button
-                    onClick={() => playAudio(sentence)}
-                    className="absolute right-3 top-3 p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                    title="발음 듣기"
+                    onClick={() => playAudio(sentence, true)}
+                    disabled={isPlayingInput}
+                    className={`absolute right-3 top-3 p-2 transition-all rounded-lg ${
+                      isPlayingInput
+                        ? 'text-white bg-blue-600 animate-pulse shadow-lg'
+                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    }`}
+                    title={`${selectedLanguage} 발음 듣기 ${isPlayingInput ? '(재생 중...)' : ''}`}
                   >
                     <Volume2 className="w-5 h-5" />
                   </button>
@@ -241,9 +277,14 @@ export function Learn() {
                           <p className="text-lg font-medium text-gray-900">{sentence}</p>
                         </div>
                         <button
-                          onClick={() => playAudio(sentence)}
-                          className="ml-3 p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                          title="발음 듣기"
+                          onClick={() => playAudio(sentence, false)}
+                          disabled={isPlayingResult}
+                          className={`ml-3 p-2 transition-all rounded-lg ${
+                            isPlayingResult
+                              ? 'text-white bg-blue-600 animate-pulse shadow-lg'
+                              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                          title={`${selectedLanguage} 발음 듣기 ${isPlayingResult ? '(재생 중...)' : ''}`}
                         >
                           <Volume2 className="w-5 h-5" />
                         </button>
