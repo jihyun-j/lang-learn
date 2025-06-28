@@ -23,16 +23,16 @@ export function useUserGoals() {
   }, [user]);
 
   const loadUserGoals = async () => {
-    if (!user) return;
+    if (!user || goals) return; // Return early if goals are already loaded
 
     try {
       const { data, error } = await supabase
         .from('user_goals')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle zero rows
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error) {
         throw error;
       }
 
