@@ -207,20 +207,16 @@ export function Review() {
               <h2 className="text-sm font-medium text-blue-600 mb-2">
                 다음 문장을 {selectedLanguage}로 말해보세요
               </h2>
-              <p className="text-2xl font-bold text-blue-900 mb-4">{currentSentence.korean_translation}</p>
+              <p className="text-2xl font-bold text-blue-900 mb-6">{currentSentence.korean_translation}</p>
               
-              {/* Moved pronunciation button here */}
+              {/* Pronunciation button */}
               <button
                 onClick={playOriginalAudio}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md"
               >
-                <Volume2 className="w-4 h-4 mr-2" />
+                <Volume2 className="w-5 h-5 mr-2" />
                 발음 듣기
               </button>
-              
-              <div className="mt-4 text-center">
-                <p className="text-sm text-blue-700 font-medium">정답: {currentSentence.english_text}</p>
-              </div>
             </div>
 
             {/* Recording Section */}
@@ -229,7 +225,7 @@ export function Review() {
                 <button
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={loading}
-                  className={`p-6 rounded-full transition-all ${
+                  className={`p-6 rounded-full transition-all shadow-lg ${
                     isRecording
                       ? 'bg-red-100 text-red-600 animate-pulse'
                       : loading
@@ -326,6 +322,12 @@ export function Review() {
                   }`}>
                     {reviewResult.feedback}
                   </p>
+
+                  {/* Show the correct answer only after the user has attempted */}
+                  <div className="mt-4 p-4 bg-white rounded-lg border">
+                    <p className="text-sm text-gray-600 mb-1">정답</p>
+                    <p className="text-lg font-medium text-gray-900">{currentSentence.english_text}</p>
+                  </div>
                 </div>
 
                 <div className="flex justify-center">
@@ -348,7 +350,7 @@ export function Review() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
             <div className="flex items-start">
               <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>발음 듣기 버튼으로 정답을 먼저 들어보세요</p>
+              <p>발음 듣기 버튼으로 원어민 발음을 들어보세요</p>
             </div>
             <div className="flex items-start">
               <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -360,7 +362,7 @@ export function Review() {
             </div>
             <div className="flex items-start">
               <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <p>틀려도 괜찮아요! 계속 연습하면 향상됩니다</p>
+              <p>정답은 분석 후에만 공개됩니다</p>
             </div>
           </div>
         </div>
