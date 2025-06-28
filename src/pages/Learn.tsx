@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, BookOpen, Check, Globe } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe } from 'lucide-react';
+import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -40,11 +41,11 @@ export function Learn() {
     
     setLoading(true);
     try {
-      // 간단한 번역 처리 - OpenAI API 사용하지 않음
-      setTranslation('번역을 직접 입력해주세요.');
+      const result = await translateSentence(sentence, selectedLanguage, '한국어');
+      setTranslation(result.translation);
     } catch (error) {
       console.error('Translation failed:', error);
-      alert('번역에 실패했습니다.');
+      alert('번역에 실패했습니다. OpenAI API 키를 확인해주세요.');
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ export function Learn() {
           </div>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">오늘의 학습</h1>
-        <p className="text-lg text-gray-600">새로운 문장을 입력하고 번역을 추가해보세요</p>
+        <p className="text-lg text-gray-600">새로운 문장을 입력하고 AI가 해석해드려요</p>
       </div>
 
       {/* Tips Section - Moved to top */}
@@ -106,7 +107,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>정확한 번역을 직접 입력해서 학습 효과를 높이세요</p>
+            <p>AI 번역을 활용해서 정확한 해석을 받아보세요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -148,23 +149,6 @@ export function Learn() {
               </div>
             </div>
 
-            {/* Translation Input Section */}
-            <div>
-              <label htmlFor="translation" className="block text-sm font-medium text-gray-700 mb-3">
-                한국어 번역을 입력해주세요
-              </label>
-              <div className="relative">
-                <textarea
-                  id="translation"
-                  rows={3}
-                  value={translation}
-                  onChange={(e) => setTranslation(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
-                  placeholder="한국어 번역을 직접 입력하세요"
-                />
-              </div>
-            </div>
-
             {/* Difficulty Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -191,11 +175,27 @@ export function Learn() {
               </div>
             </div>
 
+            {/* Translate Button */}
+            <div className="flex justify-center">
+              <button
+                onClick={handleTranslate}
+                disabled={loading || !sentence.trim()}
+                className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Sparkles className="w-5 h-5 mr-2" />
+                )}
+                {loading ? '번역중...' : 'AI 번역하기'}
+              </button>
+            </div>
+
             {/* Translation Result */}
-            {sentence && translation && (
+            {translation && (
               <div className="space-y-6 pt-6 border-t border-gray-200">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">입력된 내용</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">번역 결과</h3>
                   <div className="space-y-3">
                     <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
                       <p className="text-sm text-gray-600 mb-1">{selectedLanguage} 원문</p>
