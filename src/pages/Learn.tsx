@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2 } from 'lucide-react';
 import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -81,6 +81,50 @@ export function Learn() {
     }
   };
 
+  // Enhanced text-to-speech function with better language support
+  const playAudio = (text: string) => {
+    if (!text.trim()) return;
+
+    // Language code mapping for better TTS support
+    const languageMap: Record<string, string> = {
+      '영어': 'en-US',
+      '일본어': 'ja-JP',
+      '중국어': 'zh-CN',
+      '프랑스어': 'fr-FR',
+      '독일어': 'de-DE',
+      '스페인어': 'es-ES',
+      '이탈리아어': 'it-IT',
+      '러시아어': 'ru-RU',
+      '포르투갈어': 'pt-BR',
+      '아랍어': 'ar-SA'
+    };
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = languageMap[selectedLanguage] || 'en-US';
+    
+    // Set speech rate and pitch for better pronunciation
+    utterance.rate = 0.8; // Slightly slower for learning
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Handle errors
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      alert(`발음 재생에 실패했습니다. ${selectedLanguage} 음성이 지원되지 않을 수 있습니다.`);
+    };
+
+    // Check if voices are available
+    const voices = speechSynthesis.getVoices();
+    const targetLang = languageMap[selectedLanguage] || 'en-US';
+    const voice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    speechSynthesis.speak(utterance);
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -144,8 +188,23 @@ export function Learn() {
                   value={sentence}
                   onChange={(e) => setSentence(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  placeholder={selectedLanguage === '영어' ? "예: How are you doing today?" : `${selectedLanguage} 문장을 입력하세요`}
+                  placeholder={selectedLanguage === '영어' ? "예: How are you doing today?" : 
+                              selectedLanguage === '프랑스어' ? "예: Comment allez-vous aujourd'hui?" :
+                              selectedLanguage === '독일어' ? "예: Wie geht es Ihnen heute?" :
+                              selectedLanguage === '스페인어' ? "예: ¿Cómo estás hoy?" :
+                              selectedLanguage === '일본어' ? "예: 今日はいかがですか？" :
+                              selectedLanguage === '중국어' ? "例: 你今天怎么样？" :
+                              `${selectedLanguage} 문장을 입력하세요`}
                 />
+                {sentence.trim() && (
+                  <button
+                    onClick={() => playAudio(sentence)}
+                    className="absolute right-3 top-3 p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="발음 듣기"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -198,8 +257,19 @@ export function Learn() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">번역 결과</h3>
                   <div className="space-y-3">
                     <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
-                      <p className="text-sm text-gray-600 mb-1">{selectedLanguage} 원문</p>
-                      <p className="text-lg font-medium text-gray-900">{sentence}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600 mb-1">{selectedLanguage} 원문</p>
+                          <p className="text-lg font-medium text-gray-900">{sentence}</p>
+                        </div>
+                        <button
+                          onClick={() => playAudio(sentence)}
+                          className="ml-3 p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="발음 듣기"
+                        >
+                          <Volume2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                     <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
                       <p className="text-sm text-gray-600 mb-1">한국어 번역</p>
