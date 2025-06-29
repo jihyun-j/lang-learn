@@ -62,9 +62,97 @@ export function Learn() {
     }
   };
 
-  // 🎵 새로운 TTS 시스템 사용
+  // 언어별 음성 코드 매핑
+  const getLanguageCode = (language: string): string => {
+    const languageMap: { [key: string]: string } = {
+      '영어': 'en-US',
+      '프랑스어': 'fr-FR',
+      '독일어': 'de-DE',
+      '스페인어': 'es-ES',
+      '이탈리아어': 'it-IT',
+      '일본어': 'ja-JP',
+      '중국어': 'zh-CN',
+      '러시아어': 'ru-RU',
+      '포르투갈어': 'pt-BR',
+      '아랍어': 'ar-SA'
+    };
+    return languageMap[language] || 'en-US';
+  };
+
+  // 음성 재생 함수
   const playAudio = async (text: string, isInput: boolean = false) => {
-  
+    if (!text.trim()) return;
+
+    setAudioError(null);
+
+    try {
+      const currentlyPlaying = isInput ? isPlayingInput : isPlayingResult;
+      
+      // 이미 재생 중인 경우 중지
+      if (currentlyPlaying) {
+        window.speechSynthesis.cancel();
+        setIsPlayingInput(false);
+        setIsPlayingResult(false);
+        return;
+      }
+
+      // 다른 음성 중지
+      window.speechSynthesis.cancel();
+
+      if (isInput) {
+        setIsPlayingInput(true);
+      } else {
+        setIsPlayingResult(true);
+      }
+
+      // 음성 합성 설정
+      const utterance = new SpeechSynthesisUtterance(text);
+      const languageCode = getLanguageCode(selectedLanguage);
+      utterance.lang = languageCode;
+      utterance.rate = 0.8; // 조금 느리게
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // 사용 가능한 음성 중에서 해당 언어 음성 찾기
+      const voices = window.speechSynthesis.getVoices();
+      const targetVoice = voices.find(voice => 
+        voice.lang.startsWith(languageCode.split('-')[0]) || 
+        voice.lang === languageCode
+      );
+      
+      if (targetVoice) {
+        utterance.voice = targetVoice;
+      }
+
+      // 재생 완료 시 상태 초기화
+      utterance.onend = () => {
+        setIsPlayingInput(false);
+        setIsPlayingResult(false);
+      };
+
+      // 에러 처리
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setIsPlayingInput(false);
+        setIsPlayingResult(false);
+        setAudioError(`음성 재생 중 오류가 발생했습니다: ${event.error}`);
+        setTimeout(() => setAudioError(null), 3000);
+      };
+
+      // 음성 재생
+      window.speechSynthesis.speak(utterance);
+
+    } catch (error) {
+      console.error('Audio playback failed:', error);
+      setIsPlayingInput(false);
+      setIsPlayingResult(false);
+      
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setAudioError(errorMessage);
+      
+      // 3초 후 에러 메시지 자동 제거
+      setTimeout(() => setAudioError(null), 3000);
+    }
   };
 
   return (
