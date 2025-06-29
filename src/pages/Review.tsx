@@ -60,8 +60,6 @@ export function Review() {
     }
   };
 
-  console.log(selectedLanguage)
-
   const handleRecordingAnalysis = async () => {
     if (!recording || !currentSentence) return;
 
@@ -126,7 +124,7 @@ export function Review() {
       let languageCode = 'en-US'; // 기본값
 
        // target_language 또는 selectedLanguage에 따른 언어 코드 설정
-    const targetLang = currentSentence.target_language || selectedLanguage;
+    const targetLang = currentSentence.target_language 
 
       // 언어별 처리
     switch (targetLang) {
