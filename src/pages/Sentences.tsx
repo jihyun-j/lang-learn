@@ -80,6 +80,23 @@ export function Sentences() {
     }
   };
 
+  // 언어별 음성 코드 매핑
+  const getLanguageCode = (language: string): string => {
+    const languageMap: { [key: string]: string } = {
+      '영어': 'en-US',
+      '프랑스어': 'fr-FR',
+      '독일어': 'de-DE',
+      '스페인어': 'es-ES',
+      '이탈리아어': 'it-IT',
+      '일본어': 'ja-JP',
+      '중국어': 'zh-CN',
+      '러시아어': 'ru-RU',
+      '포르투갈어': 'pt-BR',
+      '아랍어': 'ar-SA'
+    };
+    return languageMap[language] || 'en-US';
+  };
+
   const playAudio = async (text: string, sentenceId: string) => {
    
   };
