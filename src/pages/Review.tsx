@@ -103,6 +103,8 @@ export function Review() {
   const playOriginalAudio = async () => {
       const voices = window.speechSynthesis.getVoices();
       const utterance = new SpeechSynthesisUtterance("Bonjour");
+
+      utterance.voice = voices.find((voice) => voice.lang = "fr-FR")
       utterance.lang = 'fr-FR'
       utterance.rate = 0.8; // 조금 천천히
       utterance.pitch = 1.0;
