@@ -110,39 +110,10 @@ export function Review() {
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      // 음성 재생 완료 시 상태 업데이트
-      utterance.onend = () => {
-        setIsPlayingAudio(false);
-      };
 
-      utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event);
-        setIsPlayingAudio(false);
-        setAudioError(`음성 재생 오류: ${event.error}`);
-        setTimeout(() => setAudioError(null), 5000);
-      };
 
-      // 기존 음성 중지
-      window.speechSynthesis.cancel();
-      
-      // 새 음성 시작
-      window.speechSynthesis.speak(utterance);
-    } else {
-      // Web Speech API가 지원되지 않는 경우 기존 방식 사용
-      await speakText(textToSpeak, languageCode);
-      setIsPlayingAudio(false);
-    }
-
-    } catch (error) {
-    console.error('Playbook failed:', error);
-    setIsPlayingAudio(false);
-    
-    const errorMessage = error instanceof Error ? error.message : '음성 재생에 실패했습니다.';
-    setAudioError(errorMessage);
-    
-    setTimeout(() => setAudioError(null), 5000);
-  }
-  };
+   
+};
 
 
   const nextSentence = () => {
