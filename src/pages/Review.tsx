@@ -121,7 +121,7 @@ export function Review() {
 
       // 언어별 적절한 텍스트와 언어 코드 매핑
       let textToSpeak = currentSentence.english_text;
-      let languageCode = 'en-US'; // 기본값
+      let languageCode = 'fr-FR'; // 기본값
 
        // target_language 또는 selectedLanguage에 따른 언어 코드 설정
     const targetLang = currentSentence.target_language || selectedLanguage;
@@ -150,7 +150,7 @@ export function Review() {
         languageCode = 'zh-CN';
         break;
       default:
-        languageCode = 'en-US';
+        languageCode = 'fr-FR';
     }
 
      if ('speechSynthesis' in window) {
