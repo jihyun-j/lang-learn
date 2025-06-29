@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 
 export function Sentences() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [showDateRange, setShowDateRange] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
+  const [dateRange, setDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
   const [totalCount, setTotalCount] = useState(0);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -26,7 +30,7 @@ export function Sentences() {
     if (user && selectedLanguage) {
       loadSentences();
     }
-  }, [user, currentPage, searchTerm, difficultyFilter, selectedLanguage]);
+  }, [user, currentPage, searchTerm, difficultyFilter, selectedLanguage, dateRange]);
 
   const loadSentences = async () => {
     if (!user) return;
@@ -46,6 +50,21 @@ export function Sentences() {
 
       if (difficultyFilter !== 'all') {
         query = query.eq('difficulty', difficultyFilter);
+      }
+
+      // Date range filter
+      if (dateRange.startDate && dateRange.endDate) {
+        const startDate = startOfDay(new Date(dateRange.startDate));
+        const endDate = endOfDay(new Date(dateRange.endDate));
+        query = query
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString());
+      } else if (dateRange.startDate) {
+        const startDate = startOfDay(new Date(dateRange.startDate));
+        query = query.gte('created_at', startDate.toISOString());
+      } else if (dateRange.endDate) {
+        const endDate = endOfDay(new Date(dateRange.endDate));
+        query = query.lte('created_at', endDate.toISOString());
       }
 
       const { data, error, count } = await query
@@ -180,6 +199,11 @@ export function Sentences() {
     }
   };
 
+  const clearDateRange = () => {
+    setDateRange({ startDate: '', endDate: '' });
+    setCurrentPage(1);
+  };
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const ListView = () => (
@@ -277,21 +301,19 @@ export function Sentences() {
         <div className="text-center py-12">
           <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-lg text-gray-600">
-            {selectedLanguage}로 등록된 문장이 없습니다.
+            {dateRange.startDate || dateRange.endDate 
+              ? '선택한 날짜 범위에 해당하는 문장이 없습니다.'
+              : `${selectedLanguage}로 등록된 문장이 없습니다.`
+            }
           </p>
-          <p className="text-sm text-gray-500 mt-2">먼저 '오늘의 학습'에서 문장을 추가해보세요.</p>
+          <p className="text-sm text-gray-500 mt-2">
+            {dateRange.startDate || dateRange.endDate 
+              ? '다른 날짜 범위를 선택하거나 필터를 초기화해보세요.'
+              : '먼저 \'오늘의 학습\'에서 문장을 추가해보세요.'
+            }
+          </p>
         </div>
       )}
-    </div>
-  );
-
-  const CalendarView = () => (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="text-center py-12">
-        <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <p className="text-lg text-gray-600">캘린더 뷰</p>
-        <p className="text-sm text-gray-500 mt-2">준비중입니다...</p>
-      </div>
     </div>
   );
 
@@ -360,36 +382,151 @@ export function Sentences() {
           </div>
         </div>
 
-        {/* View Toggle */}
+        {/* Date Range and View Toggle */}
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg ${
-              viewMode === 'list'
+            onClick={() => setShowDateRange(!showDateRange)}
+            className={`p-2 rounded-lg transition-colors ${
+              showDateRange || dateRange.startDate || dateRange.endDate
                 ? 'bg-blue-100 text-blue-600'
-                : 'text-gray-400 hover:text-gray-600'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
             }`}
-          >
-            <List className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setViewMode('calendar')}
-            className={`p-2 rounded-lg ${
-              viewMode === 'calendar'
-                ? 'bg-blue-100 text-blue-600'
-                : 'text-gray-400 hover:text-gray-600'
-            }`}
+            title="날짜 범위 필터"
           >
             <Calendar className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {}}
+            className="p-2 rounded-lg bg-blue-100 text-blue-600"
+            title="리스트 뷰"
+          >
+            <List className="w-5 h-5" />
           </button>
         </div>
       </div>
 
+      {/* Date Range Picker */}
+      {showDateRange && (
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">날짜 범위 선택</h3>
+            <button
+              onClick={() => setShowDateRange(false)}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-2">
+                시작 날짜
+              </label>
+              <input
+                id="start-date"
+                type="date"
+                value={dateRange.startDate}
+                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-2">
+                종료 날짜
+              </label>
+              <input
+                id="end-date"
+                type="date"
+                value={dateRange.endDate}
+                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                min={dateRange.startDate || undefined}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Date Range Actions */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-600">
+              {dateRange.startDate && dateRange.endDate ? (
+                <span>
+                  {format(new Date(dateRange.startDate), 'yyyy년 MM월 dd일')} ~ {format(new Date(dateRange.endDate), 'yyyy년 MM월 dd일')}
+                </span>
+              ) : dateRange.startDate ? (
+                <span>{format(new Date(dateRange.startDate), 'yyyy년 MM월 dd일')} 이후</span>
+              ) : dateRange.endDate ? (
+                <span>{format(new Date(dateRange.endDate), 'yyyy년 MM월 dd일')} 이전</span>
+              ) : (
+                <span>날짜 범위를 선택하세요</span>
+              )}
+            </div>
+            
+            {(dateRange.startDate || dateRange.endDate) && (
+              <button
+                onClick={clearDateRange}
+                className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+              >
+                초기화
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Active Filters Display */}
+      {(dateRange.startDate || dateRange.endDate || difficultyFilter !== 'all' || searchTerm) && (
+        <div className="bg-blue-50 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">활성 필터:</span>
+              <div className="flex flex-wrap gap-2">
+                {searchTerm && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    검색: "{searchTerm}"
+                  </span>
+                )}
+                {difficultyFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    난이도: {getDifficultyLabel(difficultyFilter)}
+                  </span>
+                )}
+                {(dateRange.startDate || dateRange.endDate) && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    날짜: {dateRange.startDate && dateRange.endDate 
+                      ? `${format(new Date(dateRange.startDate), 'MM/dd')} ~ ${format(new Date(dateRange.endDate), 'MM/dd')}`
+                      : dateRange.startDate 
+                        ? `${format(new Date(dateRange.startDate), 'MM/dd')} 이후`
+                        : `${format(new Date(dateRange.endDate!), 'MM/dd')} 이전`
+                    }
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setDifficultyFilter('all');
+                clearDateRange();
+                setCurrentPage(1);
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              모든 필터 초기화
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
-      {viewMode === 'list' ? <ListView /> : <CalendarView />}
+      <ListView />
 
       {/* Pagination */}
-      {viewMode === 'list' && totalPages > 1 && (
+      {totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 rounded-lg">
           <div className="flex justify-between flex-1 sm:hidden">
             <button
@@ -477,7 +614,15 @@ export function Sentences() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>📅 날짜 범위 필터</strong>로 특정 기간에 학습한 문장들을 확인하세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
             <p><strong>🎯 퀴즈 모드</strong>로 랜덤 문장들을 테스트해보세요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>🔄 복습 모드</strong>에서 이 문장들을 음성으로 연습할 수 있어요</p>
           </div>
         </div>
         
