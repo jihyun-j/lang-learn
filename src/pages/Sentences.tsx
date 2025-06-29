@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
+import { useLocale } from '../hooks/useLocale';
+import { getTranslation } from '../utils/translations';
 import { translateSentence } from '../lib/openai';
 import { Sentence } from '../types';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -37,6 +39,8 @@ export function Sentences() {
   
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
+  const { locale } = useLocale();
+  const t = getTranslation(locale);
 
   const itemsPerPage = 12;
 
@@ -96,7 +100,7 @@ export function Sentences() {
   };
 
   const deleteSentence = async (id: string) => {
-    if (!confirm('이 문장을 삭제하시겠습니까?')) return;
+    if (!confirm(t.sentences.deleteConfirm)) return;
 
     try {
       const { error } = await supabase
@@ -110,7 +114,7 @@ export function Sentences() {
       setTotalCount(prev => prev - 1);
     } catch (error) {
       console.error('Failed to delete sentence:', error);
-      alert('문장 삭제에 실패했습니다.');
+      alert(t.sentences.deleteFailed);
     }
   };
 
@@ -144,7 +148,7 @@ export function Sentences() {
       const translationResult = await translateSentence(
         editingData.english_text,
         selectedLanguage,
-        '한국어'
+        locale === 'en' ? 'English' : '한국어'
       );
 
       // 데이터베이스 업데이트
@@ -179,7 +183,7 @@ export function Sentences() {
 
     } catch (error) {
       console.error('Failed to save sentence:', error);
-      setEditError(error instanceof Error ? error.message : '저장에 실패했습니다. 다시 시도해주세요.');
+      setEditError(error instanceof Error ? error.message : t.sentences.saveFailed);
     } finally {
       setSaveLoading(false);
     }
@@ -247,7 +251,7 @@ export function Sentences() {
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         setPlayingId(null);
-        setAudioError(`음성 재생 중 오류가 발생했습니다: ${event.error}`);
+        setAudioError(`${t.sentences.audioError} ${event.error}`);
         setTimeout(() => setAudioError(null), 3000);
       };
 
@@ -258,7 +262,7 @@ export function Sentences() {
       console.error('Audio playback failed:', error);
       setPlayingId(null);
       
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      const errorMessage = error instanceof Error ? error.message : t.errors.unknownError;
       setAudioError(errorMessage);
       
       // 3초 후 에러 메시지 자동 제거
@@ -277,9 +281,9 @@ export function Sentences() {
 
   const getDifficultyLabel = (difficulty: string) => {
     switch (difficulty) {
-      case 'easy': return '쉬움';
-      case 'medium': return '보통';
-      case 'hard': return '어려움';
+      case 'easy': return t.common.easy;
+      case 'medium': return t.common.medium;
+      case 'hard': return t.common.hard;
       default: return difficulty;
     }
   };
@@ -302,7 +306,7 @@ export function Sentences() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-red-700">
-                <strong>음성 재생 오류:</strong> {audioError}
+                <strong>{t.sentences.audioError}</strong> {audioError}
               </p>
             </div>
           </div>
@@ -318,7 +322,7 @@ export function Sentences() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-red-700">
-                <strong>편집 오류:</strong> {editError}
+                <strong>{t.sentences.editError}</strong> {editError}
               </p>
             </div>
           </div>
@@ -328,11 +332,11 @@ export function Sentences() {
       {/* Table Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
-          <div className="col-span-5">문장</div>
-          <div className="col-span-3">번역</div>
-          <div className="col-span-1">난이도</div>
-          <div className="col-span-2">등록일</div>
-          <div className="col-span-1">작업</div>
+          <div className="col-span-5">{t.sentences.sentence}</div>
+          <div className="col-span-3">{t.sentences.translation}</div>
+          <div className="col-span-1">{t.sentences.difficulty}</div>
+          <div className="col-span-2">{t.sentences.registeredDate}</div>
+          <div className="col-span-1">{t.sentences.actions}</div>
         </div>
       </div>
 
@@ -362,7 +366,7 @@ export function Sentences() {
                             ? 'text-gray-300 cursor-not-allowed'
                             : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:shadow-md'
                       }`}
-                      title={isEditing ? '편집 중에는 재생할 수 없습니다' : `${selectedLanguage} 발음 듣기 ${playingId === sentence.id ? '(재생 중... 클릭하면 중지)' : ''}`}
+                      title={isEditing ? t.sentences.cannotPlayWhileEditing : `${selectedLanguage} ${t.quiz.listenPronunciation} ${playingId === sentence.id ? `(${t.review.audioPlaying})` : ''}`}
                     >
                       <Volume2 className={`w-4 h-4 transition-transform ${
                         playingId === sentence.id ? 'scale-110' : 'group-hover:scale-110'
@@ -375,7 +379,7 @@ export function Sentences() {
                           onChange={(e) => setEditingData(prev => prev ? { ...prev, english_text: e.target.value } : null)}
                           className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                           rows={2}
-                          placeholder={`${selectedLanguage} 문장을 입력하세요`}
+                          placeholder={`${selectedLanguage} ${t.learn.enterSentence}`}
                         />
                       ) : (
                         <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
@@ -388,8 +392,8 @@ export function Sentences() {
                 <div className="col-span-3">
                   {isEditing ? (
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-800 font-medium">AI 번역 예정</p>
-                      <p className="text-xs text-yellow-600 mt-1">저장 시 자동으로 번역됩니다</p>
+                      <p className="text-sm text-yellow-800 font-medium">{t.sentences.aiTranslationPending}</p>
+                      <p className="text-xs text-yellow-600 mt-1">{t.sentences.aiTranslationDesc}</p>
                     </div>
                   ) : (
                     <p className="text-gray-700 break-words leading-relaxed">{sentence.korean_translation}</p>
@@ -404,9 +408,9 @@ export function Sentences() {
                       onChange={(e) => setEditingData(prev => prev ? { ...prev, difficulty: e.target.value as 'easy' | 'medium' | 'hard' } : null)}
                       className="w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs"
                     >
-                      <option value="easy">쉬움</option>
-                      <option value="medium">보통</option>
-                      <option value="hard">어려움</option>
+                      <option value="easy">{t.common.easy}</option>
+                      <option value="medium">{t.common.medium}</option>
+                      <option value="hard">{t.common.hard}</option>
                     </select>
                   ) : (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
@@ -431,7 +435,7 @@ export function Sentences() {
                           onClick={saveSentence}
                           disabled={saveLoading || !editingData?.english_text.trim()}
                           className="p-1 text-green-600 hover:text-green-800 transition-colors rounded hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="저장"
+                          title={t.common.save}
                         >
                           {saveLoading ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
@@ -443,7 +447,7 @@ export function Sentences() {
                           onClick={cancelEditing}
                           disabled={saveLoading}
                           className="p-1 text-gray-600 hover:text-gray-800 transition-colors rounded hover:bg-gray-50 disabled:opacity-50"
-                          title="취소"
+                          title={t.common.cancel}
                         >
                           <XCircle className="w-4 h-4" />
                         </button>
@@ -453,14 +457,14 @@ export function Sentences() {
                         <button
                           onClick={() => startEditing(sentence)}
                           className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-blue-50"
-                          title="편집"
+                          title={t.common.edit}
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteSentence(sentence.id)}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
-                          title="삭제"
+                          title={t.common.delete}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -479,14 +483,14 @@ export function Sentences() {
           <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-lg text-gray-600">
             {dateRange.startDate || dateRange.endDate 
-              ? '선택한 날짜 범위에 해당하는 문장이 없습니다.'
-              : `${selectedLanguage}로 등록된 문장이 없습니다.`
+              ? t.sentences.noDateRange
+              : `${selectedLanguage}${t.sentences.noSentences}`
             }
           </p>
           <p className="text-sm text-gray-500 mt-2">
             {dateRange.startDate || dateRange.endDate 
-              ? '다른 날짜 범위를 선택하거나 필터를 초기화해보세요.'
-              : '먼저 \'오늘의 학습\'에서 문장을 추가해보세요.'
+              ? t.sentences.noDateRangeHint
+              : t.sentences.noSentencesHint
             }
           </p>
         </div>
@@ -508,14 +512,14 @@ export function Sentences() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">문장 리스트</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t.sentences.title}</h1>
             <div className="ml-4 flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               <Globe className="w-4 h-4 mr-1" />
               {selectedLanguage}
             </div>
           </div>
           <p className="text-sm text-gray-600">
-            {selectedLanguage}로 총 {totalCount}개의 문장을 학습하고 있습니다.
+            {selectedLanguage}{locale === 'en' ? ' - Total' : '로 총'} {totalCount}{locale === 'en' ? ' sentences are being learned.' : '개의 문장을 학습하고 있습니다.'}
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
@@ -524,7 +528,7 @@ export function Sentences() {
             className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
           >
             <Shuffle className="w-5 h-5 mr-2" />
-            퀴즈
+            {t.sentences.quiz}
           </Link>
         </div>
       </div>
@@ -537,7 +541,7 @@ export function Sentences() {
             <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="문장 검색..."
+              placeholder={`${t.sentences.sentence} ${t.common.search}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -551,10 +555,10 @@ export function Sentences() {
               onChange={(e) => setDifficultyFilter(e.target.value as any)}
               className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="all">모든 난이도</option>
-              <option value="easy">쉬움</option>
-              <option value="medium">보통</option>
-              <option value="hard">어려움</option>
+              <option value="all">{t.sentences.allDifficulties}</option>
+              <option value="easy">{t.common.easy}</option>
+              <option value="medium">{t.common.medium}</option>
+              <option value="hard">{t.common.hard}</option>
             </select>
           </div>
         </div>
@@ -568,14 +572,14 @@ export function Sentences() {
                 ? 'bg-blue-100 text-blue-600'
                 : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
             }`}
-            title="날짜 범위 필터"
+            title={t.sentences.dateRange}
           >
             <Calendar className="w-5 h-5" />
           </button>
           <button
             onClick={() => {}}
             className="p-2 rounded-lg bg-blue-100 text-blue-600"
-            title="리스트 뷰"
+            title={locale === 'en' ? 'List View' : '리스트 뷰'}
           >
             <List className="w-5 h-5" />
           </button>
@@ -586,7 +590,7 @@ export function Sentences() {
       {showDateRange && (
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">날짜 범위 선택</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t.sentences.dateRange}</h3>
             <button
               onClick={() => setShowDateRange(false)}
               className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
@@ -598,7 +602,7 @@ export function Sentences() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-2">
-                시작 날짜
+                {t.sentences.startDate}
               </label>
               <input
                 id="start-date"
@@ -612,7 +616,7 @@ export function Sentences() {
             
             <div>
               <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-2">
-                종료 날짜
+                {t.sentences.endDate}
               </label>
               <input
                 id="end-date"
@@ -634,11 +638,11 @@ export function Sentences() {
                   {format(new Date(dateRange.startDate), 'yyyy년 MM월 dd일')} ~ {format(new Date(dateRange.endDate), 'yyyy년 MM월 dd일')}
                 </span>
               ) : dateRange.startDate ? (
-                <span>{format(new Date(dateRange.startDate), 'yyyy년 MM월 dd일')} 이후</span>
+                <span>{format(new Date(dateRange.startDate), 'yyyy년 MM월 dd일')} {t.sentences.after}</span>
               ) : dateRange.endDate ? (
-                <span>{format(new Date(dateRange.endDate), 'yyyy년 MM월 dd일')} 이전</span>
+                <span>{format(new Date(dateRange.endDate), 'yyyy년 MM월 dd일')} {t.sentences.before}</span>
               ) : (
-                <span>날짜 범위를 선택하세요</span>
+                <span>{t.sentences.selectDateRange}</span>
               )}
             </div>
             
@@ -647,7 +651,7 @@ export function Sentences() {
                 onClick={clearDateRange}
                 className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
               >
-                초기화
+                {t.common.reset}
               </button>
             )}
           </div>
@@ -660,25 +664,25 @@ export function Sentences() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Filter className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">활성 필터:</span>
+              <span className="text-sm font-medium text-blue-900">{t.sentences.activeFilters}</span>
               <div className="flex flex-wrap gap-2">
                 {searchTerm && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    검색: "{searchTerm}"
+                    {t.sentences.search} "{searchTerm}"
                   </span>
                 )}
                 {difficultyFilter !== 'all' && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    난이도: {getDifficultyLabel(difficultyFilter)}
+                    {t.common.difficulty}: {getDifficultyLabel(difficultyFilter)}
                   </span>
                 )}
                 {(dateRange.startDate || dateRange.endDate) && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    날짜: {dateRange.startDate && dateRange.endDate 
+                    {t.common.date}: {dateRange.startDate && dateRange.endDate 
                       ? `${format(new Date(dateRange.startDate), 'MM/dd')} ~ ${format(new Date(dateRange.endDate), 'MM/dd')}`
                       : dateRange.startDate 
-                        ? `${format(new Date(dateRange.startDate), 'MM/dd')} 이후`
-                        : `${format(new Date(dateRange.endDate!), 'MM/dd')} 이전`
+                        ? `${format(new Date(dateRange.startDate), 'MM/dd')} ${t.sentences.after}`
+                        : `${format(new Date(dateRange.endDate!), 'MM/dd')} ${t.sentences.before}`
                     }
                   </span>
                 )}
@@ -693,7 +697,7 @@ export function Sentences() {
               }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
-              모든 필터 초기화
+              {t.sentences.clearAllFilters}
             </button>
           </div>
         </div>
@@ -708,8 +712,8 @@ export function Sentences() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-blue-700">
-                <strong>편집 모드:</strong> 문장을 수정하고 저장하면 AI가 자동으로 재번역합니다. 
-                {saveLoading && <span className="ml-2 text-blue-600">번역 중...</span>}
+                <strong>{t.sentences.editMode}</strong> {t.sentences.editModeDesc}
+                {saveLoading && <span className="ml-2 text-blue-600">{t.sentences.translating}</span>}
               </p>
             </div>
           </div>
@@ -728,14 +732,14 @@ export function Sentences() {
               disabled={currentPage === 1}
               className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              이전
+              {t.common.previous}
             </button>
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              다음
+              {t.common.next}
             </button>
           </div>
           <div className="hidden sm:flex sm:items-center sm:justify-between">
@@ -748,7 +752,7 @@ export function Sentences() {
                 </span>
                 {' / '}
                 <span className="font-medium">{totalCount}</span>
-                개 결과
+                {locale === 'en' ? ' results' : '개 결과'}
               </p>
             </div>
             <div>
@@ -758,7 +762,7 @@ export function Sentences() {
                   disabled={currentPage === 1}
                   className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  이전
+                  {t.common.previous}
                 </button>
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
@@ -782,7 +786,7 @@ export function Sentences() {
                   disabled={currentPage === totalPages}
                   className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  다음
+                  {t.common.next}
                 </button>
               </nav>
             </div>
@@ -792,31 +796,31 @@ export function Sentences() {
 
       {/* Enhanced Tips Section */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-        <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 문장 리스트 활용 팁</h3>
+        <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 {t.sentences.tips}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🔊 발음 버튼</strong>을 클릭하여 {selectedLanguage} 원어민 발음을 들어보세요</p>
+            <p><strong>🔊 {t.quiz.listenPronunciation}:</strong> {t.sentences.tipAudio}</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>✏️ 편집 버튼</strong>으로 문장을 수정하면 AI가 자동으로 재번역해드려요</p>
+            <p><strong>✏️ {t.common.edit}:</strong> {t.sentences.tipEdit}</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🔍 검색 기능</strong>으로 특정 문장을 빠르게 찾을 수 있어요</p>
+            <p><strong>🔍 {t.common.search}:</strong> {t.sentences.tipSearch}</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>📊 난이도 필터</strong>로 체계적으로 학습 단계를 관리하세요</p>
+            <p><strong>📊 {t.common.difficulty}:</strong> {t.sentences.tipDifficulty}</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>📅 날짜 범위 필터</strong>로 특정 기간에 학습한 문장들을 확인하세요</p>
+            <p><strong>📅 {t.common.date}:</strong> {t.sentences.tipDateRange}</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🎯 퀴즈 모드</strong>로 랜덤 문장들을 테스트해보세요</p>
+            <p><strong>🎯 {t.sentences.quiz}:</strong> {t.sentences.tipQuiz}</p>
           </div>
         </div>
         
@@ -835,11 +839,11 @@ export function Sentences() {
                selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
             </span>
             <div>
-              <p className="text-sm font-semibold text-blue-900 mb-1">{selectedLanguage} 인라인 편집 기능</p>
+              <p className="text-sm font-semibold text-blue-900 mb-1">{selectedLanguage} {t.sentences.inlineEdit}</p>
               <p className="text-sm text-blue-800">
-                현재 학습 중인 <strong>{selectedLanguage}</strong> 문장을 바로 수정할 수 있습니다! 
-                편집 버튼을 클릭하여 문장과 난이도를 수정하면, AI가 자동으로 한국어로 재번역해드립니다.
-                <span className="font-medium"> 편집 중에는 음성 재생이 비활성화됩니다.</span>
+                {locale === 'en' ? 'You can edit' : '현재 학습 중인'} <strong>{selectedLanguage}</strong> {locale === 'en' ? 'sentences directly!' : '문장을 바로 수정할 수 있습니다!'} 
+                {locale === 'en' ? ' Click the edit button to modify sentences and difficulty, and AI will automatically retranslate to Korean.' : ' 편집 버튼을 클릭하여 문장과 난이도를 수정하면, AI가 자동으로 한국어로 재번역해드립니다.'}
+                <span className="font-medium"> {t.sentences.editingDisabled}</span>
               </p>
             </div>
           </div>
@@ -851,7 +855,7 @@ export function Sentences() {
             <div className="flex items-center">
               <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />
               <p className="text-sm text-blue-800">
-                <strong>{selectedLanguage} 발음 재생 중...</strong> 중지하려면 같은 버튼을 다시 클릭하거나, 다른 문장을 재생하세요.
+                <strong>{selectedLanguage} {t.sentences.playingAudio}</strong> {t.sentences.playingAudioHint}
               </p>
             </div>
           </div>

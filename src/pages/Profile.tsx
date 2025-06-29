@@ -4,6 +4,8 @@ import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Aw
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
+import { useLocale } from '../hooks/useLocale';
+import { getTranslation } from '../utils/translations';
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 interface ProfileStats {
@@ -58,6 +60,8 @@ export function Profile() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
+  const { locale } = useLocale();
+  const t = getTranslation(locale);
 
   const availableLanguages = [
     '영어', '일본어', '중국어', '프랑스어', '독일어', '스페인어', '이탈리아어', '러시아어', '포르투갈어', '아랍어'
@@ -137,7 +141,7 @@ export function Profile() {
       const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
       
       const weeklyData = weekDays.map(day => {
-        const dayStr = format(day, 'EEE');
+        const dayStr = locale === 'en' ? format(day, 'EEE') : format(day, 'EEE');
         const daySentences = sentences?.filter(s => 
           format(new Date(s.created_at), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
         ).length || 0;
@@ -178,32 +182,32 @@ export function Profile() {
 
       // Generate monthly progress (mock data for demo)
       const monthlyProgress = [
-        { month: '1월', sentences: 15, reviews: 45 },
-        { month: '2월', sentences: 22, reviews: 67 },
-        { month: '3월', sentences: 18, reviews: 52 },
-        { month: '4월', sentences: 25, reviews: 78 },
-        { month: '5월', sentences: 30, reviews: 89 },
-        { month: '6월', sentences: totalSentences, reviews: totalReviews },
+        { month: locale === 'en' ? 'Jan' : '1월', sentences: 15, reviews: 45 },
+        { month: locale === 'en' ? 'Feb' : '2월', sentences: 22, reviews: 67 },
+        { month: locale === 'en' ? 'Mar' : '3월', sentences: 18, reviews: 52 },
+        { month: locale === 'en' ? 'Apr' : '4월', sentences: 25, reviews: 78 },
+        { month: locale === 'en' ? 'May' : '5월', sentences: 30, reviews: 89 },
+        { month: locale === 'en' ? 'Jun' : '6월', sentences: totalSentences, reviews: totalReviews },
       ];
 
       // Generate difficulty distribution
       const difficultyDistribution = [
-        { difficulty: '쉬움', count: sentences?.filter(s => s.difficulty === 'easy').length || 0 },
-        { difficulty: '보통', count: sentences?.filter(s => s.difficulty === 'medium').length || 0 },
-        { difficulty: '어려움', count: sentences?.filter(s => s.difficulty === 'hard').length || 0 },
+        { difficulty: t.common.easy, count: sentences?.filter(s => s.difficulty === 'easy').length || 0 },
+        { difficulty: t.common.medium, count: sentences?.filter(s => s.difficulty === 'medium').length || 0 },
+        { difficulty: t.common.hard, count: sentences?.filter(s => s.difficulty === 'hard').length || 0 },
       ];
 
       // Generate recent activity
       const recentActivity = [
         ...sentences?.slice(0, 3).map(s => ({
           date: format(new Date(s.created_at), 'MM.dd'),
-          type: '새 문장',
+          type: t.profile.newSentence,
           sentence: s.english_text,
         })) || [],
         ...languageReviews.slice(0, 3).map(r => ({
           date: format(new Date(r.created_at), 'MM.dd'),
-          type: '복습',
-          sentence: '발음 연습',
+          type: t.profile.review,
+          sentence: t.profile.pronunciationPractice,
           score: r.overall_score,
         })) || [],
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
@@ -234,7 +238,7 @@ export function Profile() {
     const validLanguages = editForm.target_languages.filter(lang => lang.trim() !== '').slice(0, 3);
     
     if (validLanguages.length === 0) {
-      alert('최소 하나의 학습 언어를 선택해주세요.');
+      alert(t.profile.selectAtLeastOne);
       return;
     }
 
@@ -255,10 +259,10 @@ export function Profile() {
       } : null);
 
       setEditing(false);
-      alert('프로필이 성공적으로 업데이트되었습니다.');
+      alert(t.profile.profileUpdateSuccess);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      alert('프로필 업데이트에 실패했습니다.');
+      alert(t.profile.profileUpdateFailed);
     }
   };
 
@@ -316,8 +320,8 @@ export function Profile() {
             <User className="w-12 h-12 text-blue-600" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900">프로필</h1>
-        <p className="mt-2 text-lg text-gray-600">개인 정보와 학습 통계를 확인하세요</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t.profile.title}</h1>
+        <p className="mt-2 text-lg text-gray-600">{t.profile.subtitle}</p>
       </div>
 
       {/* Current Language Display */}
@@ -325,25 +329,25 @@ export function Profile() {
         <div className="flex items-center justify-center">
           <Globe className="w-6 h-6 text-blue-600 mr-3" />
           <h2 className="text-2xl font-bold text-gray-900">
-            현재 선택된 언어: <span className="text-blue-600">{selectedLanguage}</span>
+            {t.profile.currentLanguage} <span className="text-blue-600">{selectedLanguage}</span>
           </h2>
         </div>
         <p className="text-center text-gray-600 mt-2">
-          아래 통계는 {selectedLanguage} 학습 데이터를 기준으로 합니다
+          {t.profile.currentLanguageDesc}
         </p>
       </div>
 
       {/* Profile Information */}
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">개인 정보</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t.profile.personalInfo}</h2>
           {!editing ? (
             <button
               onClick={() => setEditing(true)}
               className="flex items-center px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             >
               <Edit3 className="w-4 h-4 mr-2" />
-              편집
+              {t.profile.edit}
             </button>
           ) : (
             <div className="flex space-x-2">
@@ -352,14 +356,14 @@ export function Profile() {
                 className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Save className="w-4 h-4 mr-2" />
-                저장
+                {t.profile.save}
               </button>
               <button
                 onClick={handleCancelEdit}
                 className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <X className="w-4 h-4 mr-2" />
-                취소
+                {t.profile.cancel}
               </button>
             </div>
           )}
@@ -367,21 +371,21 @@ export function Profile() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">이메일</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile.email}</label>
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-gray-900">{profile.email}</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">가입일</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile.joinDate}</label>
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-gray-900">{format(new Date(profile.created_at), 'yyyy년 MM월 dd일')}</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">모국어</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile.nativeLanguage}</label>
             {editing ? (
               <div className="relative">
                 <Globe className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -390,10 +394,10 @@ export function Profile() {
                   onChange={(e) => setEditForm(prev => ({ ...prev, native_language: e.target.value }))}
                   className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="한국어">한국어</option>
-                  <option value="영어">English</option>
-                  <option value="일본어">日本語</option>
-                  <option value="중국어">中文</option>
+                  <option value="한국어">{locale === 'en' ? 'Korean' : '한국어'}</option>
+                  <option value="English">English</option>
+                  <option value="일본어">{locale === 'en' ? 'Japanese' : '日本語'}</option>
+                  <option value="중국어">{locale === 'en' ? 'Chinese' : '中文'}</option>
                 </select>
               </div>
             ) : (
@@ -405,7 +409,7 @@ export function Profile() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              학습 언어 (최대 3개)
+              {t.profile.targetLanguages} {t.profile.maxLanguages}
             </label>
             {editing ? (
               <div className="space-y-3">
@@ -418,7 +422,7 @@ export function Profile() {
                         onChange={(e) => updateLanguage(index, e.target.value)}
                         className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
-                        <option value="">언어 선택</option>
+                        <option value="">{t.profile.selectLanguage}</option>
                         {availableLanguages.map(lang => (
                           <option key={lang} value={lang}>{lang}</option>
                         ))}
@@ -440,7 +444,7 @@ export function Profile() {
                     className="flex items-center px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    언어 추가
+                    {t.profile.addLanguage}
                   </button>
                 )}
               </div>
@@ -465,8 +469,8 @@ export function Profile() {
       {/* Learning Statistics Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{selectedLanguage} 학습 통계</h2>
-          <p className="mt-1 text-gray-600">학습 진도와 성과를 한눈에 확인하세요</p>
+          <h2 className="text-2xl font-bold text-gray-900">{selectedLanguage} {t.profile.learningStats}</h2>
+          <p className="mt-1 text-gray-600">{t.profile.learningStatsDesc}</p>
         </div>
         <div className="mt-4 sm:mt-0">
           <div className="flex rounded-lg bg-gray-100 p-1">
@@ -480,7 +484,9 @@ export function Profile() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {range === 'week' ? '주간' : range === 'month' ? '월간' : '연간'}
+                {range === 'week' ? (locale === 'en' ? 'Weekly' : '주간') : 
+                 range === 'month' ? (locale === 'en' ? 'Monthly' : '월간') : 
+                 (locale === 'en' ? 'Yearly' : '연간')}
               </button>
             ))}
           </div>
@@ -492,9 +498,9 @@ export function Profile() {
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">총 학습 문장</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.totalSentences}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.totalSentences}</p>
-              <p className="text-xs text-green-600 mt-1">+3 이번 주</p>
+              <p className="text-xs text-green-600 mt-1">+3 {t.profile.thisWeek}</p>
             </div>
             <div className="p-3 bg-blue-100 rounded-full">
               <BookOpen className="w-6 h-6 text-blue-600" />
@@ -505,9 +511,9 @@ export function Profile() {
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">총 복습 횟수</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.totalReviews}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.totalReviews}</p>
-              <p className="text-xs text-green-600 mt-1">+12 이번 주</p>
+              <p className="text-xs text-green-600 mt-1">+12 {t.profile.thisWeek}</p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -518,9 +524,9 @@ export function Profile() {
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">평균 정확도</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.averageAccuracy}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.averageAccuracy}%</p>
-              <p className="text-xs text-green-600 mt-1">+5% 지난 주 대비</p>
+              <p className="text-xs text-green-600 mt-1">+5% {t.profile.lastWeek}</p>
             </div>
             <div className="p-3 bg-yellow-100 rounded-full">
               <Target className="w-6 h-6 text-yellow-600" />
@@ -531,9 +537,9 @@ export function Profile() {
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">연속 학습일</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.streakDays}일</p>
-              <p className="text-xs text-blue-600 mt-1">🔥 연속 기록</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.consecutiveDays}</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.streakDays}{locale === 'en' ? ' days' : '일'}</p>
+              <p className="text-xs text-blue-600 mt-1">🔥 {t.profile.streak}</p>
             </div>
             <div className="p-3 bg-purple-100 rounded-full">
               <Calendar className="w-6 h-6 text-purple-600" />
@@ -550,8 +556,8 @@ export function Profile() {
               <Clock className="w-6 h-6 text-orange-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">총 학습 시간</p>
-              <p className="text-2xl font-bold text-gray-900">{Math.floor(stats.totalStudyTime / 60)}시간 {stats.totalStudyTime % 60}분</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.totalStudyTime}</p>
+              <p className="text-2xl font-bold text-gray-900">{Math.floor(stats.totalStudyTime / 60)}{t.profile.hours} {stats.totalStudyTime % 60}{t.profile.minutes}</p>
             </div>
           </div>
         </div>
@@ -562,7 +568,7 @@ export function Profile() {
               <Zap className="w-6 h-6 text-indigo-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">이번 주 활동</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.thisWeekActivity}</p>
               <p className="text-2xl font-bold text-gray-900">{stats.weeklyData.reduce((acc, day) => acc + day.sentences + day.reviews, 0)}</p>
             </div>
           </div>
@@ -574,8 +580,8 @@ export function Profile() {
               <Brain className="w-6 h-6 text-pink-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">학습 레벨</p>
-              <p className="text-2xl font-bold text-gray-900">중급</p>
+              <p className="text-sm font-medium text-gray-600">{t.profile.learningLevel}</p>
+              <p className="text-2xl font-bold text-gray-900">{t.profile.intermediate}</p>
             </div>
           </div>
         </div>
@@ -585,22 +591,22 @@ export function Profile() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Weekly Activity */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">주간 학습 활동</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.weeklyActivity}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.weeklyData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="day" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="sentences" fill="#3B82F6" name="새 문장" />
-              <Bar dataKey="reviews" fill="#10B981" name="복습" />
+              <Bar dataKey="sentences" fill="#3B82F6" name={locale === 'en' ? 'New Sentences' : '새 문장'} />
+              <Bar dataKey="reviews" fill="#10B981" name={locale === 'en' ? 'Reviews' : '복습'} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Accuracy Distribution */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">정확도 분포</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.accuracyDistribution}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -624,22 +630,22 @@ export function Profile() {
 
         {/* Monthly Progress */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">월별 학습 진도</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.monthlyProgress}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={stats.monthlyProgress}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Area type="monotone" dataKey="sentences" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} name="새 문장" />
-              <Area type="monotone" dataKey="reviews" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name="복습" />
+              <Area type="monotone" dataKey="sentences" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} name={locale === 'en' ? 'New Sentences' : '새 문장'} />
+              <Area type="monotone" dataKey="reviews" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name={locale === 'en' ? 'Reviews' : '복습'} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Difficulty Distribution */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">난이도별 문장 분포</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.difficultyDistribution}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.difficultyDistribution} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" />
@@ -654,20 +660,20 @@ export function Profile() {
 
       {/* Weekly Accuracy Trend */}
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">주간 정확도 추이</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.weeklyAccuracy}</h3>
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={stats.weeklyData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="day" />
             <YAxis domain={[0, 100]} />
-            <Tooltip formatter={(value) => [`${value}%`, '정확도']} />
+            <Tooltip formatter={(value) => [`${value}%`, t.common.accuracy]} />
             <Line 
               type="monotone" 
               dataKey="accuracy" 
               stroke="#F59E0B" 
               strokeWidth={3}
               dot={{ fill: '#F59E0B', strokeWidth: 2, r: 6 }}
-              name="정확도"
+              name={t.common.accuracy}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -675,17 +681,17 @@ export function Profile() {
 
       {/* Recent Activity */}
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">최근 활동</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.recentActivity}</h3>
         <div className="space-y-4">
           {stats.recentActivity.map((activity, index) => (
             <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center">
                 <div className={`p-2 rounded-full ${
-                  activity.type === '새 문장' ? 'bg-blue-100' : 'bg-green-100'
+                  activity.type === t.profile.newSentence ? 'bg-blue-100' : 'bg-green-100'
                 }`}>
-                  {activity.type === '새 문장' ? (
+                  {activity.type === t.profile.newSentence ? (
                     <BookOpen className={`w-4 h-4 ${
-                      activity.type === '새 문장' ? 'text-blue-600' : 'text-green-600'
+                      activity.type === t.profile.newSentence ? 'text-blue-600' : 'text-green-600'
                     }`} />
                   ) : (
                     <TrendingUp className="w-4 h-4 text-green-600" />
@@ -699,7 +705,7 @@ export function Profile() {
               <div className="text-right">
                 <p className="text-sm text-gray-500">{activity.date}</p>
                 {activity.score && (
-                  <p className="text-sm font-medium text-gray-900">{activity.score}점</p>
+                  <p className="text-sm font-medium text-gray-900">{activity.score}{t.profile.points}</p>
                 )}
               </div>
             </div>
