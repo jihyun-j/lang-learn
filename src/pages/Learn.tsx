@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, FileText } from 'lucide-react';
 import { translateSentence, checkGrammarAndSpelling, GrammarCheckResult } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -24,31 +24,21 @@ export function Learn() {
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
 
-  // 문장 입력 시 자동 문법 검사 (디바운스)
-  useEffect(() => {
+  // 수동 문법 검사 함수
+  const handleManualGrammarCheck = async () => {
     if (!sentence.trim()) {
-      setGrammarCheck(null);
-      setShowGrammarCheck(false);
+      alert('문법 검사를 위해 먼저 문장을 입력해주세요.');
       return;
     }
 
-    const timeoutId = setTimeout(() => {
-      handleGrammarCheck();
-    }, 1500); // 1.5초 후 자동 검사
-
-    return () => clearTimeout(timeoutId);
-  }, [sentence, selectedLanguage]);
-
-  const handleGrammarCheck = async () => {
-    if (!sentence.trim()) return;
-
     setGrammarCheckLoading(true);
     setGrammarCheckError(null);
+    setShowGrammarCheck(false);
 
     try {
       const result = await checkGrammarAndSpelling(sentence, selectedLanguage);
       setGrammarCheck(result);
-      setShowGrammarCheck(!result.isCorrect || result.suggestions.length > 0);
+      setShowGrammarCheck(true);
     } catch (error) {
       console.error('Grammar check failed:', error);
       setGrammarCheckError(error instanceof Error ? error.message : '문법 검사에 실패했습니다.');
@@ -288,7 +278,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>AI가 자동으로 문법과 맞춤법을 검사해드려요</p>
+            <p>문법 검사 버튼으로 정확한 문장을 작성하세요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -328,13 +318,7 @@ export function Learn() {
                   rows={3}
                   value={sentence}
                   onChange={(e) => setSentence(e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors ${
-                    grammarCheck && !grammarCheck.isCorrect 
-                      ? 'border-orange-300 bg-orange-50' 
-                      : grammarCheck && grammarCheck.isCorrect 
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-300 focus:border-blue-500'
-                  }`}
+                  className="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors"
                   placeholder={selectedLanguage === '영어' ? "예: How are you doing today?" : 
                               selectedLanguage === '프랑스어' ? "예: Comment allez-vous aujourd'hui?" :
                               selectedLanguage === '독일어' ? "예: Wie geht es Ihnen heute?" :
@@ -344,22 +328,29 @@ export function Learn() {
                               `${selectedLanguage} 문장을 입력하세요`}
                 />
                 
-                {/* Grammar Check Status Indicator */}
+                {/* Input Box Controls */}
                 <div className="absolute right-3 top-3 flex items-center space-x-2">
-                  {grammarCheckLoading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  )}
+                  {/* Grammar Check Button */}
+                  <button
+                    onClick={handleManualGrammarCheck}
+                    disabled={grammarCheckLoading || !sentence.trim()}
+                    className={`p-2 transition-all rounded-lg ${
+                      grammarCheckLoading
+                        ? 'text-blue-600 bg-blue-100 animate-pulse'
+                        : sentence.trim()
+                          ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
+                          : 'text-gray-300 cursor-not-allowed'
+                    }`}
+                    title={grammarCheckLoading ? '문법 검사 중...' : '문법 검사'}
+                  >
+                    {grammarCheckLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    ) : (
+                      <FileText className="w-5 h-5" />
+                    )}
+                  </button>
                   
-                  {grammarCheck && !grammarCheckLoading && (
-                    <div className="flex items-center">
-                      {grammarCheck.isCorrect ? (
-                        <CheckCircle className="w-5 h-5 text-green-500" title="문법 검사 완료 - 오류 없음" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-orange-500" title="문법 오류 발견" />
-                      )}
-                    </div>
-                  )}
-                  
+                  {/* Audio Play Button */}
                   {sentence.trim() && (
                     <button
                       onClick={() => playAudio(sentence, true)}
@@ -596,7 +587,7 @@ export function Learn() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-800">
           <div className="flex items-start">
             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>실시간 검사:</strong> 문장 입력 후 1.5초 뒤 자동으로 문법을 검사합니다</p>
+            <p><strong>수동 검사:</strong> 입력창의 문법 검사 버튼을 클릭하여 필요할 때 검사</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -631,7 +622,7 @@ export function Learn() {
               <p className="text-sm text-green-800">
                 현재 학습 중인 <strong>{selectedLanguage}</strong>에 특화된 문법 검사를 제공합니다! 
                 언어별 특성을 고려한 정확한 오류 감지와 자연스러운 표현 제안을 받아보세요.
-                <span className="font-medium"> 입력창의 색상 변화로 검사 결과를 즉시 확인할 수 있습니다.</span>
+                <span className="font-medium"> 입력창의 📄 버튼을 클릭하여 언제든지 문법을 검사할 수 있습니다.</span>
               </p>
             </div>
           </div>
