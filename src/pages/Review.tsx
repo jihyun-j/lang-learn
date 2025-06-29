@@ -101,59 +101,9 @@ export function Review() {
   };
 
   const playOriginalAudio = async () => {
-    if (!currentSentence?.english_text) return;
+   
 
-    setAudioError(null);
-
-    try {
-      // 이미 재생 중인 경우 중지
-      if (isPlayingAudio && isSpeaking()) {
-        stopSpeech();
-        setIsPlayingAudio(false);
-        return;
-      }
-
-      // 다른 음성이 재생 중이면 중지
-      if (isSpeaking()) {
-        stopSpeech();
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // 언어별 적절한 텍스트와 언어 코드 매핑
-      let textToSpeak = currentSentence.english_text;
-      let languageCode = 'en-US'; // 기본값
-
-       // target_language 또는 selectedLanguage에 따른 언어 코드 설정
-    const targetLang = currentSentence.target_language 
-
-      // 언어별 처리
-    switch (targetLang) {
-      case '영어':
-        languageCode = 'en-US';
-        break;
-      case '프랑스어':
-        languageCode = 'fr-FR';
-        break;
-      case '스페인어':
-        languageCode = 'es-ES';
-        break;
-      case '독일어':
-        languageCode = 'de-DE';
-        break;
-      case '이탈리아어':
-        languageCode = 'it-IT';
-        break;
-      case '일본어':
-        languageCode = 'ja-JP';
-        break;
-      case '중국어':
-        languageCode = 'zh-CN';
-        break;
-      default:
-        languageCode = 'en-US';
-    }
-
-     if ('speechSynthesis' in window) {
+   
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.lang = 'fr-FR'
       utterance.rate = 0.8; // 조금 천천히
@@ -194,19 +144,6 @@ export function Review() {
   }
   };
 
-  // 언어 변경 시 음성 중지하는 useEffect 추가
-useEffect(() => {
-  // 언어가 변경되면 현재 재생 중인 음성을 중지
-  if (isPlayingAudio) {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    if (isSpeaking()) {
-      stopSpeech();
-    }
-    setIsPlayingAudio(false);
-  }
-}, [selectedLanguage]);
 
   const nextSentence = () => {
     setReviewResult(null);
