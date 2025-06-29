@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
 import { format } from 'date-fns';
-import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
 
 export function Sentences() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
@@ -82,38 +81,7 @@ export function Sentences() {
   };
 
   const playAudio = async (text: string, sentenceId: string) => {
-    if (!text.trim()) return;
-
-    setAudioError(null);
-
-    try {
-      // 이미 재생 중인 경우 중지
-      if (playingId === sentenceId && isSpeaking()) {
-        stopSpeech();
-        setPlayingId(null);
-        return;
-      }
-
-      // 다른 음성 중지
-      if (playingId && isSpeaking()) {
-        stopSpeech();
-      }
-
-      setPlayingId(sentenceId);
-
-      await speakText(text, selectedLanguage);
-      
-      setPlayingId(null);
-
-    } catch (error) {
-      console.error('Playback failed:', error);
-      setPlayingId(null);
-      
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-      setAudioError(errorMessage);
-      
-      setTimeout(() => setAudioError(null), 3000);
-    }
+   
   };
 
   const startQuiz = () => {
