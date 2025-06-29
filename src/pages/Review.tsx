@@ -194,6 +194,20 @@ export function Review() {
   }
   };
 
+  // 언어 변경 시 음성 중지하는 useEffect 추가
+useEffect(() => {
+  // 언어가 변경되면 현재 재생 중인 음성을 중지
+  if (isPlayingAudio) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (isSpeaking()) {
+      stopSpeech();
+    }
+    setIsPlayingAudio(false);
+  }
+}, [selectedLanguage]);
+
   const nextSentence = () => {
     setReviewResult(null);
     setTranscription('');
