@@ -101,7 +101,7 @@ export function Review() {
   };
 
   const playOriginalAudio = async () => {
-      const utterance = new SpeechSynthesisUtterance("Bonjour!");
+      const utterance = new SpeechSynthesisUtterance("Bonjour");
       utterance.lang = 'fr-FR'
       utterance.rate = 0.8; // 조금 천천히
       utterance.pitch = 1.0;
