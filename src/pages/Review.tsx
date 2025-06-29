@@ -100,6 +100,10 @@ export function Review() {
   };
 
   const playOriginalAudio = async () => {
+
+      
+
+      
       const voices = window.speechSynthesis.getVoices();
       const utterance = new SpeechSynthesisUtterance("Bonjour");
 
