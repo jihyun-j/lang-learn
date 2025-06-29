@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X, Save, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
+import { translateSentence } from '../lib/openai';
 import { Sentence } from '../types';
 import { format, startOfDay, endOfDay } from 'date-fns';
+
+interface EditingState {
+  id: string;
+  english_text: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
 
 export function Sentences() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
@@ -21,6 +28,13 @@ export function Sentences() {
   const [totalCount, setTotalCount] = useState(0);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  
+  // 편집 관련 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<EditingState | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
 
@@ -97,6 +111,77 @@ export function Sentences() {
     } catch (error) {
       console.error('Failed to delete sentence:', error);
       alert('문장 삭제에 실패했습니다.');
+    }
+  };
+
+  // 편집 모드 시작
+  const startEditing = (sentence: Sentence) => {
+    setEditingId(sentence.id);
+    setEditingData({
+      id: sentence.id,
+      english_text: sentence.english_text,
+      difficulty: sentence.difficulty
+    });
+    setEditError(null);
+  };
+
+  // 편집 취소
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditingData(null);
+    setEditError(null);
+  };
+
+  // 문장 수정 저장
+  const saveSentence = async () => {
+    if (!editingData || !user) return;
+
+    setSaveLoading(true);
+    setEditError(null);
+
+    try {
+      // AI 번역 요청
+      const translationResult = await translateSentence(
+        editingData.english_text,
+        selectedLanguage,
+        '한국어'
+      );
+
+      // 데이터베이스 업데이트
+      const { error } = await supabase
+        .from('sentences')
+        .update({
+          english_text: editingData.english_text,
+          korean_translation: translationResult.translation,
+          difficulty: editingData.difficulty,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingData.id);
+
+      if (error) throw error;
+
+      // 로컬 상태 업데이트
+      setSentences(prev => prev.map(sentence => 
+        sentence.id === editingData.id 
+          ? {
+              ...sentence,
+              english_text: editingData.english_text,
+              korean_translation: translationResult.translation,
+              difficulty: editingData.difficulty,
+              updated_at: new Date().toISOString()
+            }
+          : sentence
+      ));
+
+      // 편집 모드 종료
+      setEditingId(null);
+      setEditingData(null);
+
+    } catch (error) {
+      console.error('Failed to save sentence:', error);
+      setEditError(error instanceof Error ? error.message : '저장에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setSaveLoading(false);
     }
   };
 
@@ -224,6 +309,22 @@ export function Sentences() {
         </div>
       )}
 
+      {/* Edit Error Display */}
+      {editError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 m-4 rounded">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <XCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                <strong>편집 오류:</strong> {editError}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
@@ -237,64 +338,140 @@ export function Sentences() {
 
       {/* Table Body */}
       <div className="divide-y divide-gray-200">
-        {sentences.map((sentence) => (
-          <div key={sentence.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-            <div className="grid grid-cols-12 gap-4 text-sm">
-              <div className="col-span-5">
-                <div className="flex items-start space-x-3">
-                  <button
-                    onClick={() => playAudio(sentence.english_text, sentence.id)}
-                    disabled={playingId === sentence.id}
-                    className={`p-2 transition-all rounded-lg flex-shrink-0 group shadow-sm ${
-                      playingId === sentence.id
-                        ? 'text-white bg-blue-600 animate-pulse shadow-lg scale-105'
-                        : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:shadow-md'
-                    }`}
-                    title={`${selectedLanguage} 발음 듣기 ${playingId === sentence.id ? '(재생 중... 클릭하면 중지)' : ''}`}
-                  >
-                    <Volume2 className={`w-4 h-4 transition-transform ${
-                      playingId === sentence.id ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
+        {sentences.map((sentence) => {
+          const isEditing = editingId === sentence.id;
+          
+          return (
+            <div key={sentence.id} className={`px-6 py-4 transition-colors ${
+              isEditing ? 'bg-blue-50' : 'hover:bg-gray-50'
+            }`}>
+              <div className="grid grid-cols-12 gap-4 text-sm">
+                {/* 문장 컬럼 */}
+                <div className="col-span-5">
+                  <div className="flex items-start space-x-3">
+                    <button
+                      onClick={() => playAudio(
+                        isEditing ? editingData?.english_text || sentence.english_text : sentence.english_text, 
+                        sentence.id
+                      )}
+                      disabled={playingId === sentence.id || isEditing}
+                      className={`p-2 transition-all rounded-lg flex-shrink-0 group shadow-sm ${
+                        playingId === sentence.id
+                          ? 'text-white bg-blue-600 animate-pulse shadow-lg scale-105'
+                          : isEditing
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:shadow-md'
+                      }`}
+                      title={isEditing ? '편집 중에는 재생할 수 없습니다' : `${selectedLanguage} 발음 듣기 ${playingId === sentence.id ? '(재생 중... 클릭하면 중지)' : ''}`}
+                    >
+                      <Volume2 className={`w-4 h-4 transition-transform ${
+                        playingId === sentence.id ? 'scale-110' : 'group-hover:scale-110'
+                      }`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      {isEditing ? (
+                        <textarea
+                          value={editingData?.english_text || ''}
+                          onChange={(e) => setEditingData(prev => prev ? { ...prev, english_text: e.target.value } : null)}
+                          className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                          rows={2}
+                          placeholder={`${selectedLanguage} 문장을 입력하세요`}
+                        />
+                      ) : (
+                        <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 번역 컬럼 */}
+                <div className="col-span-3">
+                  {isEditing ? (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 font-medium">AI 번역 예정</p>
+                      <p className="text-xs text-yellow-600 mt-1">저장 시 자동으로 번역됩니다</p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 break-words leading-relaxed">{sentence.korean_translation}</p>
+                  )}
+                </div>
+
+                {/* 난이도 컬럼 */}
+                <div className="col-span-1">
+                  {isEditing ? (
+                    <select
+                      value={editingData?.difficulty || 'medium'}
+                      onChange={(e) => setEditingData(prev => prev ? { ...prev, difficulty: e.target.value as 'easy' | 'medium' | 'hard' } : null)}
+                      className="w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs"
+                    >
+                      <option value="easy">쉬움</option>
+                      <option value="medium">보통</option>
+                      <option value="hard">어려움</option>
+                    </select>
+                  ) : (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
+                      {getDifficultyLabel(sentence.difficulty)}
+                    </span>
+                  )}
+                </div>
+
+                {/* 등록일 컬럼 */}
+                <div className="col-span-2">
+                  <p className="text-gray-600">
+                    {format(new Date(sentence.created_at), 'yyyy.MM.dd')}
+                  </p>
+                </div>
+
+                {/* 작업 컬럼 */}
+                <div className="col-span-1">
+                  <div className="flex items-center space-x-2">
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={saveSentence}
+                          disabled={saveLoading || !editingData?.english_text.trim()}
+                          className="p-1 text-green-600 hover:text-green-800 transition-colors rounded hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="저장"
+                        >
+                          {saveLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                          ) : (
+                            <Save className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={cancelEditing}
+                          disabled={saveLoading}
+                          className="p-1 text-gray-600 hover:text-gray-800 transition-colors rounded hover:bg-gray-50 disabled:opacity-50"
+                          title="취소"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEditing(sentence)}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-blue-50"
+                          title="편집"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteSentence(sentence.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="col-span-3">
-                <p className="text-gray-700 break-words leading-relaxed">{sentence.korean_translation}</p>
-              </div>
-              <div className="col-span-1">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(sentence.difficulty)}`}>
-                  {getDifficultyLabel(sentence.difficulty)}
-                </span>
-              </div>
-              <div className="col-span-2">
-                <p className="text-gray-600">
-                  {format(new Date(sentence.created_at), 'yyyy.MM.dd')}
-                </p>
-              </div>
-              <div className="col-span-1">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => alert('편집 기능 준비중...')}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-blue-50"
-                    title="편집"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteSentence(sentence.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
-                    title="삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {sentences.length === 0 && !loading && (
@@ -522,6 +699,23 @@ export function Sentences() {
         </div>
       )}
 
+      {/* Editing Notice */}
+      {editingId && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Edit3 className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-blue-700">
+                <strong>편집 모드:</strong> 문장을 수정하고 저장하면 AI가 자동으로 재번역합니다. 
+                {saveLoading && <span className="ml-2 text-blue-600">번역 중...</span>}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <ListView />
 
@@ -606,6 +800,10 @@ export function Sentences() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>✏️ 편집 버튼</strong>으로 문장을 수정하면 AI가 자동으로 재번역해드려요</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
             <p><strong>🔍 검색 기능</strong>으로 특정 문장을 빠르게 찾을 수 있어요</p>
           </div>
           <div className="flex items-start">
@@ -619,10 +817,6 @@ export function Sentences() {
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
             <p><strong>🎯 퀴즈 모드</strong>로 랜덤 문장들을 테스트해보세요</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🔄 복습 모드</strong>에서 이 문장들을 음성으로 연습할 수 있어요</p>
           </div>
         </div>
         
@@ -641,11 +835,11 @@ export function Sentences() {
                selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
             </span>
             <div>
-              <p className="text-sm font-semibold text-blue-900 mb-1">{selectedLanguage} 발음 특화 기능</p>
+              <p className="text-sm font-semibold text-blue-900 mb-1">{selectedLanguage} 인라인 편집 기능</p>
               <p className="text-sm text-blue-800">
-                현재 학습 중인 <strong>{selectedLanguage}</strong>의 정확한 발음을 제공합니다! 
-                네이티브 스피커의 발음을 들으며 정확한 억양과 발음을 익혀보세요.
-                <span className="font-medium"> 재생 중일 때는 버튼이 파란색으로 표시되며, 다시 클릭하면 중지됩니다.</span>
+                현재 학습 중인 <strong>{selectedLanguage}</strong> 문장을 바로 수정할 수 있습니다! 
+                편집 버튼을 클릭하여 문장과 난이도를 수정하면, AI가 자동으로 한국어로 재번역해드립니다.
+                <span className="font-medium"> 편집 중에는 음성 재생이 비활성화됩니다.</span>
               </p>
             </div>
           </div>
