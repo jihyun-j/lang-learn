@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, BookOpen, List, User, LogOut, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
+import { useLocale } from '../hooks/useLocale';
+import { getTranslation } from '../utils/translations';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,15 +13,17 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { user, signOut } = useAuth();
   const { selectedLanguage, setSelectedLanguage, availableLanguages } = useLanguage();
+  const { locale } = useLocale();
+  const t = getTranslation(locale);
   const location = useLocation();
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
 
   const navigation = [
-    { name: '홈', href: '/', icon: Home },
-    { name: '오늘의 학습', href: '/learn', icon: BookOpen },
-    { name: '오늘의 복습', href: '/review', icon: BookOpen },
-    { name: '문장 리스트', href: '/sentences', icon: List },
-    { name: '프로필', href: '/profile', icon: User },
+    { name: t.nav.home, href: '/', icon: Home },
+    { name: t.nav.learn, href: '/learn', icon: BookOpen },
+    { name: t.nav.review, href: '/review', icon: BookOpen },
+    { name: t.nav.sentences, href: '/sentences', icon: List },
+    { name: t.nav.profile, href: '/profile', icon: User },
   ];
 
   const handleSignOut = async () => {
@@ -39,7 +43,7 @@ export function Layout({ children }: LayoutProps) {
           {/* Logo */}
           <div className="flex items-center justify-center h-16 px-4 bg-blue-600">
             <BookOpen className="w-8 h-8 text-white" />
-            <span className="ml-2 text-xl font-bold text-white">LangLearn</span>
+            <span className="ml-2 text-xl font-bold text-white">{t.auth.appTitle}</span>
           </div>
 
           {/* Language Selector */}
@@ -127,6 +131,7 @@ export function Layout({ children }: LayoutProps) {
               <button
                 onClick={handleSignOut}
                 className="p-1 text-gray-400 hover:text-gray-600"
+                title={t.nav.logout}
               >
                 <LogOut className="w-4 h-4" />
               </button>

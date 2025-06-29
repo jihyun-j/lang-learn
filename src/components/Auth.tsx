@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { BookOpen, Mail, Lock, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useLocale } from '../hooks/useLocale';
+import { getTranslation } from '../utils/translations';
 
 export function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -12,6 +14,8 @@ export function Auth() {
   const [error, setError] = useState('');
 
   const { signIn, signUp } = useAuth();
+  const { locale } = useLocale();
+  const t = getTranslation(locale);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,19 +37,47 @@ export function Auth() {
     }
   };
 
+  const nativeLanguageOptions = locale === 'en' ? [
+    { value: '한국어', label: 'Korean' },
+    { value: 'English', label: 'English' },
+    { value: '일본어', label: 'Japanese' },
+    { value: '중국어', label: 'Chinese' },
+  ] : [
+    { value: '한국어', label: '한국어' },
+    { value: 'English', label: 'English' },
+    { value: '일본어', label: '日本語' },
+    { value: '중국어', label: '中文' },
+  ];
+
+  const targetLanguageOptions = locale === 'en' ? [
+    { value: '영어', label: 'English' },
+    { value: '일본어', label: 'Japanese' },
+    { value: '중국어', label: 'Chinese' },
+    { value: '프랑스어', label: 'French' },
+    { value: '독일어', label: 'German' },
+    { value: '스페인어', label: 'Spanish' },
+  ] : [
+    { value: '영어', label: 'English' },
+    { value: '일본어', label: '日本語' },
+    { value: '중국어', label: '中文' },
+    { value: '프랑스어', label: 'Français' },
+    { value: '독일어', label: 'Deutsch' },
+    { value: '스페인어', label: 'Español' },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex items-center justify-center">
             <BookOpen className="w-12 h-12 text-blue-600" />
-            <span className="ml-2 text-3xl font-bold text-gray-900">LangLearn</span>
+            <span className="ml-2 text-3xl font-bold text-gray-900">{t.auth.appTitle}</span>
           </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            {isSignUp ? '계정 만들기' : '로그인'}
+            {isSignUp ? t.auth.createAccount : t.auth.signIn}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            AI와 함께하는 스마트 언어학습
+            {t.auth.appSubtitle}
           </p>
         </div>
 
@@ -59,7 +91,7 @@ export function Auth() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                이메일
+                {t.common.email}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -70,14 +102,14 @@ export function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="your@email.com"
+                  placeholder={t.auth.emailPlaceholder}
                 />
               </div>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                비밀번호
+                {t.common.password}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -88,7 +120,7 @@ export function Auth() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="••••••••"
+                  placeholder={t.auth.passwordPlaceholder}
                 />
               </div>
             </div>
@@ -97,7 +129,7 @@ export function Auth() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="nativeLang" className="block text-sm font-medium text-gray-700 mb-2">
-                    모국어
+                    {t.common.nativeLanguage}
                   </label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -107,17 +139,16 @@ export function Auth() {
                       onChange={(e) => setNativeLang(e.target.value)}
                       className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="한국어">한국어</option>
-                      <option value="영어">English</option>
-                      <option value="일본어">日本語</option>
-                      <option value="중국어">中文</option>
+                      {nativeLanguageOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="targetLang" className="block text-sm font-medium text-gray-700 mb-2">
-                    학습언어
+                    {t.common.targetLanguage}
                   </label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -127,12 +158,9 @@ export function Auth() {
                       onChange={(e) => setTargetLang(e.target.value)}
                       className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="영어">English</option>
-                      <option value="일본어">日本語</option>
-                      <option value="중국어">中文</option>
-                      <option value="프랑스어">Français</option>
-                      <option value="독일어">Deutsch</option>
-                      <option value="스페인어">Español</option>
+                      {targetLanguageOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -144,7 +172,7 @@ export function Auth() {
               disabled={loading}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? '처리중...' : (isSignUp ? '계정 만들기' : '로그인')}
+              {loading ? t.auth.processing : (isSignUp ? t.auth.createAccount : t.auth.signIn)}
             </button>
 
             <div className="text-center">
@@ -153,7 +181,7 @@ export function Auth() {
                 onClick={() => setIsSignUp(!isSignUp)}
                 className="text-sm text-blue-600 hover:text-blue-500"
               >
-                {isSignUp ? '이미 계정이 있나요? 로그인' : '계정이 없나요? 회원가입'}
+                {isSignUp ? t.auth.alreadyHaveAccount : t.auth.noAccount}
               </button>
             </div>
           </div>

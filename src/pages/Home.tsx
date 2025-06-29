@@ -3,12 +3,16 @@ import { Link } from 'react-router-dom';
 import { BookOpen, RotateCcw, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
+import { useLocale } from '../hooks/useLocale';
+import { getTranslation } from '../utils/translations';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 
 export function Home() {
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
+  const { locale } = useLocale();
+  const t = getTranslation(locale);
   const [todaySentences, setTodaySentences] = useState(0);
   const [todayReviews, setTodayReviews] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -70,10 +74,10 @@ export function Home() {
       {/* Welcome Section */}
       <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          안녕하세요! 👋
+          {t.home.welcome}
         </h1>
         <p className="text-xl text-gray-600">
-          AI와 함께 스마트하게 언어를 학습해보세요
+          {t.home.subtitle}
         </p>
       </div>
 
@@ -82,11 +86,11 @@ export function Home() {
         <div className="flex items-center justify-center">
           <Globe className="w-6 h-6 text-blue-600 mr-3" />
           <h2 className="text-2xl font-bold text-gray-900">
-            현재 학습 언어: <span className="text-blue-600">{selectedLanguage}</span>
+            {t.home.currentLanguage} <span className="text-blue-600">{selectedLanguage}</span>
           </h2>
         </div>
         <p className="text-center text-gray-600 mt-2">
-          사이드바에서 다른 언어로 변경할 수 있습니다
+          {t.home.changeLanguageHint}
         </p>
       </div>
 
@@ -94,9 +98,9 @@ export function Home() {
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            {selectedLanguage} 오늘의 학습 현황
+            {selectedLanguage} {t.home.todayActivity}
           </h3>
-          <p className="text-gray-600">오늘 하루 동안의 학습 활동을 확인해보세요</p>
+          <p className="text-gray-600">{t.home.todayActivitySubtitle}</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -108,15 +112,15 @@ export function Home() {
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-lg font-semibold text-blue-900">새 문장 학습</h4>
-                  <p className="text-sm text-blue-700">오늘 새롭게 추가한 문장</p>
+                  <h4 className="text-lg font-semibold text-blue-900">{t.home.newSentences}</h4>
+                  <p className="text-sm text-blue-700">{t.home.newSentencesDesc}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-3xl font-bold text-blue-600">
                   {loading ? '...' : todaySentences}
                 </p>
-                <p className="text-sm text-blue-700">개</p>
+                <p className="text-sm text-blue-700">{locale === 'en' ? 'sentences' : '개'}</p>
               </div>
             </div>
             <div className="mt-4">
@@ -125,7 +129,7 @@ export function Home() {
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
                 <BookOpen className="w-4 h-4 mr-2" />
-                학습하러 가기
+                {t.home.goToLearn}
               </Link>
             </div>
           </div>
@@ -138,15 +142,15 @@ export function Home() {
                   <RotateCcw className="w-6 h-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-lg font-semibold text-green-900">복습하기</h4>
-                  <p className="text-sm text-green-700">오늘 복습한 문장</p>
+                  <h4 className="text-lg font-semibold text-green-900">{t.home.review}</h4>
+                  <p className="text-sm text-green-700">{t.home.reviewDesc}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-3xl font-bold text-green-600">
                   {loading ? '...' : todayReviews}
                 </p>
-                <p className="text-sm text-green-700">개</p>
+                <p className="text-sm text-green-700">{locale === 'en' ? 'sentences' : '개'}</p>
               </div>
             </div>
             <div className="mt-4">
@@ -155,7 +159,7 @@ export function Home() {
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                복습하러 가기
+                {t.home.goToReview}
               </Link>
             </div>
           </div>
@@ -163,9 +167,9 @@ export function Home() {
 
         {/* Weekly Progress */}
         <div className="mt-8 bg-gray-50 rounded-xl p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">이번 주 진도</h4>
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">{t.home.weeklyProgress}</h4>
           <div className="grid grid-cols-7 gap-2">
-            {['월', '화', '수', '목', '금', '토', '일'].map((day, index) => {
+            {(locale === 'en' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['월', '화', '수', '목', '금', '토', '일']).map((day, index) => {
               const isCompleted = index < 4; // Mock data - first 4 days completed
               const isToday = index === 4; // Mock data - today is Friday
               
@@ -187,7 +191,7 @@ export function Home() {
           </div>
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
-              <span className="font-medium text-green-600">4일</span> 연속 학습 중! 🔥
+              <span className="font-medium text-green-600">4{t.home.streak}</span> {t.home.consecutiveDays} 🔥
             </p>
           </div>
         </div>
