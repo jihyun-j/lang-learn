@@ -123,40 +123,34 @@ export function Review() {
       let textToSpeak = currentSentence.english_text;
       let languageCode = 'en-US'; // 기본값
 
+       // target_language 또는 selectedLanguage에 따른 언어 코드 설정
+    const targetLang = currentSentence.target_language || selectedLanguage;
+
       // 언어별 처리
-    switch (selectedLanguage) {
+    switch (targetLang) {
       case '영어':
         languageCode = 'en-US';
-        textToSpeak = currentSentence.english_text;
         break;
       case '프랑스어':
         languageCode = 'fr-FR';
-        // 프랑스어 텍스트가 있다면 사용, 없다면 영어 텍스트 사용
-        textToSpeak = currentSentence.french_text || currentSentence.english_text;
         break;
       case '스페인어':
         languageCode = 'es-ES';
-        textToSpeak = currentSentence.spanish_text || currentSentence.english_text;
         break;
       case '독일어':
         languageCode = 'de-DE';
-        textToSpeak = currentSentence.german_text || currentSentence.english_text;
         break;
       case '이탈리아어':
         languageCode = 'it-IT';
-        textToSpeak = currentSentence.italian_text || currentSentence.english_text;
         break;
       case '일본어':
         languageCode = 'ja-JP';
-        textToSpeak = currentSentence.japanese_text || currentSentence.english_text;
         break;
       case '중국어':
         languageCode = 'zh-CN';
-        textToSpeak = currentSentence.chinese_text || currentSentence.english_text;
         break;
       default:
         languageCode = 'en-US';
-        textToSpeak = currentSentence.english_text;
     }
 
      if ('speechSynthesis' in window) {
