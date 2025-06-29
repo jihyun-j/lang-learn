@@ -439,29 +439,6 @@ export function Learn() {
                   </div>
                 )}
 
-                {/* Suggestions */}
-                {grammarCheck.suggestions.length > 0 && (
-                  <div className="space-y-3">
-                    <h5 className="font-medium text-gray-900 flex items-center">
-                      <Lightbulb className="w-4 h-4 mr-2 text-yellow-500" />
-                      더 나은 표현 제안:
-                    </h5>
-                    <div className="space-y-2">
-                      {grammarCheck.suggestions.map((suggestion, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <p className="text-sm text-blue-900 flex-1">"{suggestion}"</p>
-                          <button
-                            onClick={() => applySuggestion(suggestion)}
-                            className="ml-3 px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                          >
-                            사용하기
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* Corrected Text */}
                 {!grammarCheck.isCorrect && grammarCheck.correctedText !== sentence && (
                   <div className="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -599,7 +576,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>더 나은 표현:</strong> 원래 문장보다 자연스러운 표현을 제안</p>
+            <p><strong>전체 수정:</strong> 모든 오류를 한 번에 수정하는 옵션 제공</p>
           </div>
         </div>
         
