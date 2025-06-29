@@ -20,7 +20,6 @@ export class TextToSpeechManager {
     return new Promise((resolve) => {
       const loadVoices = () => {
         this.voices = speechSynthesis.getVoices();
-        console.log(`🎤 [TTS] Loaded ${this.voices.length} voices:`, this.voices.map(v => `${v.name} (${v.lang})`));
         this.isInitialized = true;
         resolve();
       };
@@ -35,7 +34,6 @@ export class TextToSpeechManager {
         // 타임아웃 설정
         setTimeout(() => {
           if (!this.isInitialized) {
-            console.warn('⚠️ [TTS] Voice loading timeout, proceeding anyway');
             loadVoices();
           }
         }, 3000);
@@ -64,35 +62,29 @@ export class TextToSpeechManager {
 
   private findBestVoice(language: string): SpeechSynthesisVoice | null {
     if (!this.isInitialized || this.voices.length === 0) {
-      console.warn('⚠️ [TTS] Voices not initialized, forcing reload...');
       this.voices = speechSynthesis.getVoices();
-      console.log(`🔄 [TTS] Force loaded ${this.voices.length} voices`);
     }
 
     const targetCodes = this.getLanguageCode(language);
-    console.log(`🔍 [TTS] Finding voice for ${language}, target codes:`, targetCodes);
-    console.log(`🎤 [TTS] Available voices:`, this.voices.map(v => `${v.name} (${v.lang}) ${v.default ? '[DEFAULT]' : ''}`));
 
-    // 1. 정확한 언어 코드 매칭 (우선순위 높음)
+    // 1. 정확한 언어 코드 매칭
     for (const code of targetCodes) {
       const exactMatch = this.voices.find(v => v.lang.toLowerCase() === code.toLowerCase());
       if (exactMatch) {
-        console.log(`✅ [TTS] Exact match found: ${exactMatch.name} (${exactMatch.lang})`);
         return exactMatch;
       }
     }
 
-    // 2. 언어 계열 매칭 (fr-*, en-* 등)
+    // 2. 언어 계열 매칭
     for (const code of targetCodes) {
       const prefix = code.split('-')[0].toLowerCase();
       const familyMatch = this.voices.find(v => v.lang.toLowerCase().startsWith(prefix));
       if (familyMatch) {
-        console.log(`✅ [TTS] Family match found: ${familyMatch.name} (${familyMatch.lang})`);
         return familyMatch;
       }
     }
 
-    // 3. 이름 기반 매칭 (더 강화된 키워드)
+    // 3. 이름 기반 매칭
     const nameKeywords: Record<string, string[]> = {
       '프랑스어': ['french', 'français', 'france', 'marie', 'amelie', 'thomas', 'julie', 'fr-', 'fr_'],
       '독일어': ['german', 'deutsch', 'germany', 'hans', 'petra', 'de-', 'de_'],
@@ -110,12 +102,11 @@ export class TextToSpeechManager {
         v.lang.toLowerCase().includes(keyword.toLowerCase())
       );
       if (nameMatch) {
-        console.log(`✅ [TTS] Name match found: ${nameMatch.name} (${nameMatch.lang})`);
         return nameMatch;
       }
     }
 
-    // 4. 특별한 프랑스어 처리 (Chrome/Edge에서 자주 사용되는 음성들)
+    // 4. 특별한 프랑스어 처리
     if (language === '프랑스어') {
       const frenchVoices = this.voices.filter(v => 
         v.name.toLowerCase().includes('fr') ||
@@ -126,7 +117,6 @@ export class TextToSpeechManager {
       );
       
       if (frenchVoices.length > 0) {
-        console.log(`✅ [TTS] French voice found: ${frenchVoices[0].name} (${frenchVoices[0].lang})`);
         return frenchVoices[0];
       }
     }
@@ -134,23 +124,19 @@ export class TextToSpeechManager {
     // 5. 기본 음성 사용
     const defaultVoice = this.voices.find(v => v.default);
     if (defaultVoice) {
-      console.log(`⚠️ [TTS] Using default voice for ${language}: ${defaultVoice.name} (${defaultVoice.lang})`);
       return defaultVoice;
     }
 
     // 6. 첫 번째 음성 사용
     if (this.voices.length > 0) {
-      console.log(`⚠️ [TTS] Using first available voice for ${language}: ${this.voices[0].name} (${this.voices[0].lang})`);
       return this.voices[0];
     }
 
-    console.error('🚨 [TTS] No voices available');
     return null;
   }
 
   public async speak(text: string, language: string): Promise<void> {
     if (!text.trim()) {
-      console.warn('⚠️ [TTS] Empty text provided');
       return;
     }
 
@@ -159,11 +145,8 @@ export class TextToSpeechManager {
 
     // 음성이 초기화되지 않은 경우 대기
     if (!this.isInitialized) {
-      console.log('⏳ [TTS] Waiting for initialization...');
       await this.initializeVoices();
     }
-
-    console.log(`🎵 [TTS] Starting speech: "${text}" in ${language}`);
 
     return new Promise((resolve, reject) => {
       try {
@@ -175,12 +158,10 @@ export class TextToSpeechManager {
         if (selectedVoice) {
           utterance.voice = selectedVoice;
           utterance.lang = selectedVoice.lang;
-          console.log(`🎤 [TTS] Using voice: ${selectedVoice.name} (${selectedVoice.lang})`);
         } else {
           // 폴백 언어 코드 설정
           const fallbackCodes = this.getLanguageCode(language);
           utterance.lang = fallbackCodes[0];
-          console.log(`🔄 [TTS] Using fallback language: ${utterance.lang}`);
         }
 
         // 언어별 최적화 설정
@@ -188,17 +169,15 @@ export class TextToSpeechManager {
 
         // 이벤트 핸들러
         utterance.onstart = () => {
-          console.log(`🎵 [TTS] Speech started: "${text}" with voice: ${utterance.voice?.name || 'default'}`);
+          // Speech started
         };
 
         utterance.onend = () => {
-          console.log(`✅ [TTS] Speech completed: "${text}"`);
           this.currentUtterance = null;
           resolve();
         };
 
         utterance.onerror = (event) => {
-          console.error(`🚨 [TTS] Speech error:`, event.error, event);
           this.currentUtterance = null;
           
           // 사용자 친화적 에러 메시지
@@ -228,7 +207,6 @@ export class TextToSpeechManager {
         };
 
         utterance.onpause = () => {
-          console.log('⏸️ [TTS] Speech paused');
           this.currentUtterance = null;
         };
 
@@ -238,20 +216,17 @@ export class TextToSpeechManager {
         }
 
         // 재생 시작
-        console.log(`🚀 [TTS] Starting synthesis with voice: ${utterance.voice?.name || 'system default'}, lang: ${utterance.lang}`);
         speechSynthesis.speak(utterance);
 
-        // 안전장치: 15초 후 타임아웃 (프랑스어는 더 길 수 있음)
+        // 안전장치: 15초 후 타임아웃
         setTimeout(() => {
           if (this.currentUtterance === utterance) {
-            console.warn('⏰ [TTS] Speech timeout, forcing completion');
             this.stop();
             resolve();
           }
         }, 15000);
 
       } catch (error) {
-        console.error('🚨 [TTS] Exception during speech:', error);
         this.currentUtterance = null;
         reject(error);
       }
@@ -290,13 +265,10 @@ export class TextToSpeechManager {
         utterance.rate = 0.9;
         utterance.pitch = 1.0;
     }
-
-    console.log(`⚙️ [TTS] Configured for ${language}: rate=${utterance.rate}, pitch=${utterance.pitch}, voice=${utterance.voice?.name || 'default'}`);
   }
 
   public stop(): void {
     if (this.currentUtterance) {
-      console.log('🛑 [TTS] Stopping current speech');
       speechSynthesis.cancel();
       this.currentUtterance = null;
     }
@@ -318,22 +290,6 @@ export class TextToSpeechManager {
       )
     );
   }
-
-  // 디버깅용 메서드
-  public debugVoices(language?: string): void {
-    console.log('🔍 [TTS Debug] All available voices:');
-    this.voices.forEach((voice, index) => {
-      console.log(`${index + 1}. ${voice.name} (${voice.lang}) ${voice.default ? '[DEFAULT]' : ''} ${voice.localService ? '[LOCAL]' : '[REMOTE]'}`);
-    });
-
-    if (language) {
-      console.log(`🔍 [TTS Debug] Voices for ${language}:`);
-      const languageVoices = this.getVoicesForLanguage(language);
-      languageVoices.forEach((voice, index) => {
-        console.log(`${index + 1}. ${voice.name} (${voice.lang})`);
-      });
-    }
-  }
 }
 
 // 전역 인스턴스 생성
@@ -350,9 +306,4 @@ export const stopSpeech = (): void => {
 
 export const isSpeaking = (): boolean => {
   return ttsManager.isPlaying();
-};
-
-// 디버깅용 함수
-export const debugVoices = (language?: string): void => {
-  ttsManager.debugVoices(language);
 };
