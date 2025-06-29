@@ -106,7 +106,9 @@ export function Review() {
       utterance.rate = 0.8; // 조금 천천히
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
-};
+
+    window.speechSynthesis(utterance)
+  };
 
 
   const nextSentence = () => {
