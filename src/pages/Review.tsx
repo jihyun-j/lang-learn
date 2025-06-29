@@ -104,13 +104,12 @@ export function Review() {
       const voices = window.speechSynthesis.getVoices();
       const utterance = new SpeechSynthesisUtterance("Bonjour");
 
-      utterance.voice = voices.find((voice) => voice.lang = "fr")
+      const frVoice = voices.find(v => v.lang.startsWith('fr'));
       utterance.lang = 'fr-FR'
-      utterance.rate = 0.8; // 조금 천천히
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-
-    window.speechSynthesis.speak(utterance)
+     if (frVoice) utterance.voice = frVoice;
+   window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+  if (!frVoice) alert('프랑스어 음성이 없음');
   };
 
 
