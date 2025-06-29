@@ -8,6 +8,7 @@ import { Learn } from './pages/Learn';
 import { Review } from './pages/Review';
 import { Sentences } from './pages/Sentences';
 import { Profile } from './pages/Profile';
+import { Quiz } from './pages/Quiz';
 
 function App() {
   const { user, loading } = useAuth();
@@ -33,6 +34,7 @@ function App() {
           <Route path="/review" element={<Review />} />
           <Route path="/sentences" element={<Sentences />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/quiz" element={<Quiz />} />
         </Routes>
       </Layout>
     </Router>

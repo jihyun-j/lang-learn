@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
@@ -161,10 +162,6 @@ export function Sentences() {
     }
   };
 
-  const startQuiz = () => {
-    alert('퀴즈 모드 준비중...');
-  };
-
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'easy': return 'bg-green-100 text-green-800';
@@ -323,13 +320,13 @@ export function Sentences() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
-          <button
-            onClick={startQuiz}
+          <Link
+            to="/quiz"
             className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
           >
             <Shuffle className="w-5 h-5 mr-2" />
             퀴즈
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -480,7 +477,7 @@ export function Sentences() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🎯 복습 모드</strong>에서 이 문장들을 음성으로 연습할 수 있어요</p>
+            <p><strong>🎯 퀴즈 모드</strong>로 랜덤 문장들을 테스트해보세요</p>
           </div>
         </div>
         
