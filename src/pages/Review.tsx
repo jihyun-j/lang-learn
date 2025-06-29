@@ -100,35 +100,44 @@ export function Review() {
     }
   };
 
-  // 🎵 새로운 TTS 시스템 사용
+  // 🎵 TTS 시스템 사용 - 수정된 버전
   const playOriginalAudio = async () => {
-    if (!currentSentence?.english_text) return;
+    if (!currentSentence?.english_text) {
+      console.warn('⚠️ [Review] No sentence text available');
+      return;
+    }
 
     setAudioError(null);
 
     try {
       // 이미 재생 중인 경우 중지
       if (isPlayingAudio && isSpeaking()) {
-        console.log('🛑 [Audio] Stopping current playback');
+        console.log('🛑 [Review] Stopping current playback');
         stopSpeech();
         setIsPlayingAudio(false);
         return;
       }
 
+      // 다른 음성이 재생 중이면 중지
+      if (isSpeaking()) {
+        console.log('🛑 [Review] Stopping other audio');
+        stopSpeech();
+      }
+
       setIsPlayingAudio(true);
-      console.log(`🎵 [Audio] Starting playback: "${currentSentence.english_text}" in ${selectedLanguage}`);
+      console.log(`🎵 [Review] Starting playback: "${currentSentence.english_text}" in ${selectedLanguage}`);
 
       // TTS 매니저를 사용하여 음성 재생
       await speakText(currentSentence.english_text, selectedLanguage);
       
-      console.log('✅ [Audio] Playback completed successfully');
+      console.log('✅ [Review] Playback completed successfully');
       setIsPlayingAudio(false);
 
     } catch (error) {
-      console.error('🚨 [Audio] Playback failed:', error);
+      console.error('🚨 [Review] Playback failed:', error);
       setIsPlayingAudio(false);
       
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      const errorMessage = error instanceof Error ? error.message : '음성 재생에 실패했습니다.';
       setAudioError(errorMessage);
       
       // 3초 후 에러 메시지 자동 제거
@@ -141,6 +150,7 @@ export function Review() {
     setTranscription('');
     setError('');
     setAudioError(null);
+    setIsPlayingAudio(false);
     clearRecording();
     loadRandomSentence();
   };
@@ -197,19 +207,29 @@ export function Review() {
               </h2>
               <p className="text-2xl font-bold text-blue-900 mb-6">{currentSentence.korean_translation}</p>
               
-              {/* Pronunciation button */}
+              {/* Pronunciation button - 수정된 버전 */}
               <button
                 onClick={playOriginalAudio}
                 disabled={isPlayingAudio}
-                className={`inline-flex items-center px-6 py-3 rounded-lg font-medium shadow-md transition-all ${
+                className={`inline-flex items-center px-6 py-3 rounded-lg font-medium shadow-md transition-all transform hover:scale-105 ${
                   isPlayingAudio
-                    ? 'bg-blue-700 text-white animate-pulse'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-blue-700 text-white animate-pulse shadow-lg scale-105'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
                 }`}
+                title={`${selectedLanguage} 발음 듣기 ${isPlayingAudio ? '(재생 중... 클릭하면 중지)' : ''}`}
               >
-                <Volume2 className="w-5 h-5 mr-2" />
+                <Volume2 className={`w-5 h-5 mr-2 ${isPlayingAudio ? 'animate-bounce' : ''}`} />
                 {isPlayingAudio ? '재생 중...' : '발음 듣기'}
               </button>
+
+              {/* 디버깅 정보 표시 (개발용) */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
+                  <p>Debug: {currentSentence.english_text}</p>
+                  <p>Language: {selectedLanguage}</p>
+                  <p>Playing: {isPlayingAudio ? 'Yes' : 'No'}</p>
+                </div>
+              )}
             </div>
 
             {/* Recording Section */}
@@ -218,12 +238,12 @@ export function Review() {
                 <button
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={loading}
-                  className={`p-6 rounded-full transition-all shadow-lg ${
+                  className={`p-6 rounded-full transition-all shadow-lg transform hover:scale-105 ${
                     isRecording
-                      ? 'bg-red-100 text-red-600 animate-pulse'
+                      ? 'bg-red-100 text-red-600 animate-pulse scale-110'
                       : loading
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-green-100 text-green-600 hover:bg-green-200'
+                        : 'bg-green-100 text-green-600 hover:bg-green-200 hover:shadow-xl'
                   }`}
                 >
                   {isRecording ? (
@@ -371,6 +391,18 @@ export function Review() {
                     연음(liaison)과 무음 문자에 주의하며 들어보세요.
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Audio Status Indicator */}
+          {isPlayingAudio && (
+            <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
+              <div className="flex items-center">
+                <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />
+                <p className="text-sm text-blue-800">
+                  <strong>{selectedLanguage} 발음 재생 중...</strong> 중지하려면 발음 듣기 버튼을 다시 클릭하세요.
+                </p>
               </div>
             </div>
           )}
