@@ -81,7 +81,6 @@ export function Sentences() {
     }
   };
 
-  // 🎵 새로운 TTS 시스템 사용
   const playAudio = async (text: string, sentenceId: string) => {
     if (!text.trim()) return;
 
@@ -90,7 +89,6 @@ export function Sentences() {
     try {
       // 이미 재생 중인 경우 중지
       if (playingId === sentenceId && isSpeaking()) {
-        console.log('🛑 [Audio] Stopping current playback');
         stopSpeech();
         setPlayingId(null);
         return;
@@ -102,22 +100,18 @@ export function Sentences() {
       }
 
       setPlayingId(sentenceId);
-      console.log(`🎵 [Audio] Starting playback: "${text}" in ${selectedLanguage}`);
 
-      // TTS 매니저를 사용하여 음성 재생
       await speakText(text, selectedLanguage);
       
-      console.log('✅ [Audio] Playback completed successfully');
       setPlayingId(null);
 
     } catch (error) {
-      console.error('🚨 [Audio] Playback failed:', error);
+      console.error('Playback failed:', error);
       setPlayingId(null);
       
       const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
       setAudioError(errorMessage);
       
-      // 3초 후 에러 메시지 자동 제거
       setTimeout(() => setAudioError(null), 3000);
     }
   };
@@ -167,11 +161,11 @@ export function Sentences() {
       {/* Table Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
-          <div className="col-span-4">문장</div>
+          <div className="col-span-5">문장</div>
           <div className="col-span-3">번역</div>
           <div className="col-span-1">난이도</div>
           <div className="col-span-2">등록일</div>
-          <div className="col-span-2">작업</div>
+          <div className="col-span-1">작업</div>
         </div>
       </div>
 
@@ -180,7 +174,7 @@ export function Sentences() {
         {sentences.map((sentence) => (
           <div key={sentence.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
             <div className="grid grid-cols-12 gap-4 text-sm">
-              <div className="col-span-4">
+              <div className="col-span-5">
                 <div className="flex items-start space-x-3">
                   <button
                     onClick={() => playAudio(sentence.english_text, sentence.id)}
@@ -198,21 +192,6 @@ export function Sentences() {
                   </button>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
-                    {sentence.keywords && sentence.keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {sentence.keywords.slice(0, 3).map((keyword, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full"
-                          >
-                            {keyword.length > 20 ? `${keyword.substring(0, 20)}...` : keyword}
-                          </span>
-                        ))}
-                        {sentence.keywords.length > 3 && (
-                          <span className="text-xs text-gray-500 px-2 py-1">+{sentence.keywords.length - 3}</span>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -229,7 +208,7 @@ export function Sentences() {
                   {format(new Date(sentence.created_at), 'yyyy.MM.dd')}
                 </p>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => alert('편집 기능 준비중...')}
