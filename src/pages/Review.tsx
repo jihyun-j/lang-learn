@@ -119,21 +119,85 @@ export function Review() {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      setIsPlayingAudio(true);
+      // 언어별 적절한 텍스트와 언어 코드 매핑
+      let textToSpeak = currentSentence.english_text;
+      let languageCode = 'en-US'; // 기본값
 
-      await speakText(currentSentence.english_text, selectedLanguage);
+      // 언어별 처리
+    switch (selectedLanguage) {
+      case '영어':
+        languageCode = 'en-US';
+        textToSpeak = currentSentence.english_text;
+        break;
+      case '프랑스어':
+        languageCode = 'fr-FR';
+        // 프랑스어 텍스트가 있다면 사용, 없다면 영어 텍스트 사용
+        textToSpeak = currentSentence.french_text || currentSentence.english_text;
+        break;
+      case '스페인어':
+        languageCode = 'es-ES';
+        textToSpeak = currentSentence.spanish_text || currentSentence.english_text;
+        break;
+      case '독일어':
+        languageCode = 'de-DE';
+        textToSpeak = currentSentence.german_text || currentSentence.english_text;
+        break;
+      case '이탈리아어':
+        languageCode = 'it-IT';
+        textToSpeak = currentSentence.italian_text || currentSentence.english_text;
+        break;
+      case '일본어':
+        languageCode = 'ja-JP';
+        textToSpeak = currentSentence.japanese_text || currentSentence.english_text;
+        break;
+      case '중국어':
+        languageCode = 'zh-CN';
+        textToSpeak = currentSentence.chinese_text || currentSentence.english_text;
+        break;
+      default:
+        languageCode = 'en-US';
+        textToSpeak = currentSentence.english_text;
+    }
+
+     if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.lang = languageCode;
+      utterance.rate = 0.8; // 조금 천천히
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // 음성 재생 완료 시 상태 업데이트
+      utterance.onend = () => {
+        setIsPlayingAudio(false);
+      };
+
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setIsPlayingAudio(false);
+        setAudioError(`음성 재생 오류: ${event.error}`);
+        setTimeout(() => setAudioError(null), 5000);
+      };
+
+      // 기존 음성 중지
+      window.speechSynthesis.cancel();
       
+      // 새 음성 시작
+      window.speechSynthesis.speak(utterance);
+    } else {
+      // Web Speech API가 지원되지 않는 경우 기존 방식 사용
+      await speakText(textToSpeak, languageCode);
       setIsPlayingAudio(false);
+    }
 
     } catch (error) {
-      console.error('Playback failed:', error);
-      setIsPlayingAudio(false);
-      
-      const errorMessage = error instanceof Error ? error.message : '음성 재생에 실패했습니다.';
-      setAudioError(errorMessage);
-      
-      setTimeout(() => setAudioError(null), 5000);
-    }
+    console.error('Playbook failed:', error);
+    setIsPlayingAudio(false);
+    
+    const errorMessage = error instanceof Error ? error.message : '음성 재생에 실패했습니다.';
+    setAudioError(errorMessage);
+    
+    setTimeout(() => setAudioError(null), 5000);
+  }
   };
 
   const nextSentence = () => {
