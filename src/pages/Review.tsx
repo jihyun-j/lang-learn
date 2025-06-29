@@ -286,7 +286,7 @@ export function Review() {
   const TypeIcon = typeInfo.icon;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           <Globe className="w-6 h-6 text-blue-600 mr-2" />
@@ -296,57 +296,57 @@ export function Review() {
         <p className="text-lg text-gray-600">{t.review.subtitle}</p>
       </div>
 
-      {/* Review Type Selection */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t.review.selectType}</h2>
+      {/* Review Type Selection - Compact Version */}
+      <div className="bg-white rounded-xl shadow-lg p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.review.selectType}</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <button
             onClick={() => setReviewType('recent')}
-            className={`p-4 rounded-lg border-2 transition-all ${
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
               reviewType === 'recent'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300 text-gray-700'
             }`}
           >
-            <Calendar className="w-8 h-8 mx-auto mb-2" />
-            <h3 className="font-semibold">{t.review.byDate}</h3>
-            <p className="text-sm mt-1">{t.review.byDateDesc}</p>
+            <Calendar className="w-6 h-6 mx-auto mb-1" />
+            <h3 className="font-semibold text-sm">{t.review.byDate}</h3>
+            <p className="text-xs mt-1 opacity-75">{t.review.byDateDesc}</p>
           </button>
 
           <button
             onClick={() => setReviewType('difficulty')}
-            className={`p-4 rounded-lg border-2 transition-all ${
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
               reviewType === 'difficulty'
                 ? 'border-green-500 bg-green-50 text-green-700'
                 : 'border-gray-200 hover:border-gray-300 text-gray-700'
             }`}
           >
-            <Target className="w-8 h-8 mx-auto mb-2" />
-            <h3 className="font-semibold">{t.review.byDifficulty}</h3>
-            <p className="text-sm mt-1">{t.review.byDifficultyDesc}</p>
+            <Target className="w-6 h-6 mx-auto mb-1" />
+            <h3 className="font-semibold text-sm">{t.review.byDifficulty}</h3>
+            <p className="text-xs mt-1 opacity-75">{t.review.byDifficultyDesc}</p>
           </button>
 
           <button
             onClick={() => setReviewType('mistakes')}
-            className={`p-4 rounded-lg border-2 transition-all ${
+            className={`p-3 rounded-lg border-2 transition-all text-sm ${
               reviewType === 'mistakes'
                 ? 'border-orange-500 bg-orange-50 text-orange-700'
                 : 'border-gray-200 hover:border-gray-300 text-gray-700'
             }`}
           >
-            <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-            <h3 className="font-semibold">{t.review.mistakes}</h3>
-            <p className="text-sm mt-1">{t.review.mistakesDesc}</p>
+            <AlertTriangle className="w-6 h-6 mx-auto mb-1" />
+            <h3 className="font-semibold text-sm">{t.review.mistakes}</h3>
+            <p className="text-xs mt-1 opacity-75">{t.review.mistakesDesc}</p>
           </button>
         </div>
 
-        {/* Type-specific controls */}
-        <div className="space-y-4">
+        {/* Type-specific controls - Compact */}
+        <div className="space-y-3">
           {reviewType === 'recent' && (
-            <div>
-              <label htmlFor="date-picker" className="block text-sm font-medium text-gray-700 mb-2">
-                {t.review.selectDate}
+            <div className="flex items-center space-x-3">
+              <label htmlFor="date-picker" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                {t.review.selectDate}:
               </label>
               <input
                 id="date-picker"
@@ -354,17 +354,17 @@ export function Review() {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 max={format(new Date(), 'yyyy-MM-dd')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           )}
 
           {reviewType === 'difficulty' && (
-            <div>
-              <label htmlFor="difficulty-select" className="block text-sm font-medium text-gray-700 mb-2">
-                {t.review.selectDifficulty}
+            <div className="flex items-center space-x-3">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                {t.review.selectDifficulty}:
               </label>
-              <div className="flex space-x-3">
+              <div className="flex space-x-2">
                 {[
                   { value: 'easy', label: t.common.easy, color: 'bg-green-100 text-green-800' },
                   { value: 'medium', label: t.common.medium, color: 'bg-yellow-100 text-yellow-800' },
@@ -373,9 +373,9 @@ export function Review() {
                   <button
                     key={level.value}
                     onClick={() => setSelectedDifficulty(level.value as 'easy' | 'medium' | 'hard')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm ${
                       selectedDifficulty === level.value
-                        ? level.color + ' ring-2 ring-offset-2 ring-blue-500'
+                        ? level.color + ' ring-2 ring-offset-1 ring-blue-500'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -387,15 +387,15 @@ export function Review() {
           )}
         </div>
 
-        {/* Current selection info */}
-        <div className={`mt-6 p-4 rounded-lg bg-${typeInfo.color}-50 border border-${typeInfo.color}-200`}>
-          <div className="flex items-center">
-            <TypeIcon className={`w-5 h-5 text-${typeInfo.color}-600 mr-2`} />
+        {/* Current selection info - Compact */}
+        <div className={`mt-3 p-3 rounded-lg bg-${typeInfo.color}-50 border border-${typeInfo.color}-200`}>
+          <div className="flex items-center text-sm">
+            <TypeIcon className={`w-4 h-4 text-${typeInfo.color}-600 mr-2`} />
             <div>
-              <h4 className={`font-semibold text-${typeInfo.color}-900`}>{typeInfo.title}</h4>
-              <p className={`text-sm text-${typeInfo.color}-700`}>
+              <span className={`font-semibold text-${typeInfo.color}-900`}>{typeInfo.title}</span>
+              <span className={`text-${typeInfo.color}-700 ml-2`}>
                 {typeInfo.description} • {availableSentences.length}{locale === 'en' ? ' sentences ready' : '개 문장 준비됨'}
-              </p>
+              </span>
             </div>
           </div>
         </div>
