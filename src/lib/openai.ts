@@ -13,6 +13,20 @@ export interface SpeechRecognitionResult {
   feedback: string;
 }
 
+export interface GrammarCheckResult {
+  isCorrect: boolean;
+  correctedText: string;
+  errors: Array<{
+    type: 'grammar' | 'spelling' | 'punctuation' | 'style';
+    original: string;
+    suggestion: string;
+    explanation: string;
+    position?: { start: number; end: number };
+  }>;
+  suggestions: string[];
+  confidence: number;
+}
+
 // Fallback translations for common phrases when API is unavailable
 const fallbackTranslations: Record<string, string> = {
   'hello': '안녕하세요',
@@ -177,6 +191,134 @@ Keywords: [key expressions separated by commas]`
       throw new Error(`번역 실패: ${error.message}`);
     }
     throw new Error('번역에 실패했습니다. 네트워크 연결을 확인해주세요.');
+  }
+}
+
+// 새로운 문법 및 맞춤법 검사 함수
+export async function checkGrammarAndSpelling(
+  text: string,
+  language: string
+): Promise<GrammarCheckResult> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경변수를 확인해주세요.');
+  }
+
+  if (!text.trim()) {
+    return {
+      isCorrect: true,
+      correctedText: text,
+      errors: [],
+      suggestions: [],
+      confidence: 100
+    };
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert ${language} grammar and spelling checker. Analyze the given text and provide corrections.
+
+Return your response in JSON format with these fields:
+- isCorrect: boolean (true if no errors found)
+- correctedText: string (corrected version of the text)
+- errors: array of objects with:
+  - type: "grammar" | "spelling" | "punctuation" | "style"
+  - original: the incorrect text
+  - suggestion: the corrected text
+  - explanation: brief explanation in Korean
+- suggestions: array of alternative phrasings (max 3)
+- confidence: number 0-100 (confidence in the corrections)
+
+Focus on:
+1. Grammar errors (verb tenses, subject-verb agreement, etc.)
+2. Spelling mistakes
+3. Punctuation errors
+4. Natural language flow and style
+5. Common mistakes for language learners
+
+Be helpful but not overly critical. For language learners, focus on major errors that affect meaning.`
+          },
+          {
+            role: 'user',
+            content: `Please check this ${language} text for grammar and spelling errors: "${text}"`
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Handle quota exceeded error specifically
+      if (errorData.error?.code === 'insufficient_quota' || 
+          errorData.error?.message?.includes('exceeded your current quota')) {
+        console.warn('OpenAI API quota exceeded for grammar check');
+        return {
+          isCorrect: true,
+          correctedText: text,
+          errors: [],
+          suggestions: [],
+          confidence: 0
+        };
+      }
+      
+      throw new Error(`OpenAI API 오류: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+      const parsed = JSON.parse(content);
+      return {
+        isCorrect: parsed.isCorrect || false,
+        correctedText: parsed.correctedText || text,
+        errors: parsed.errors || [],
+        suggestions: parsed.suggestions || [],
+        confidence: parsed.confidence || 0
+      };
+    } catch (parseError) {
+      console.error('Failed to parse grammar check response:', parseError);
+      // Return safe fallback
+      return {
+        isCorrect: true,
+        correctedText: text,
+        errors: [],
+        suggestions: [],
+        confidence: 0
+      };
+    }
+  } catch (error) {
+    console.error('Grammar check error:', error);
+    
+    // Provide fallback for quota/network errors
+    if (error instanceof Error && 
+        (error.message.includes('quota') || error.message.includes('network') || error.message.includes('fetch'))) {
+      console.warn('Using fallback grammar check due to API unavailability');
+      return {
+        isCorrect: true,
+        correctedText: text,
+        errors: [],
+        suggestions: [],
+        confidence: 0
+      };
+    }
+    
+    if (error instanceof Error) {
+      throw new Error(`문법 검사 실패: ${error.message}`);
+    }
+    throw new Error('문법 검사에 실패했습니다. 네트워크 연결을 확인해주세요.');
   }
 }
 

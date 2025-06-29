@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Volume2 } from 'lucide-react';
-import { translateSentence } from '../lib/openai';
+import React, { useState, useEffect } from 'react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
+import { translateSentence, checkGrammarAndSpelling, GrammarCheckResult } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
@@ -14,8 +14,61 @@ export function Learn() {
   const [isPlayingInput, setIsPlayingInput] = useState(false);
   const [isPlayingResult, setIsPlayingResult] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  
+  // 문법 검사 관련 상태
+  const [grammarCheck, setGrammarCheck] = useState<GrammarCheckResult | null>(null);
+  const [grammarCheckLoading, setGrammarCheckLoading] = useState(false);
+  const [showGrammarCheck, setShowGrammarCheck] = useState(false);
+  const [grammarCheckError, setGrammarCheckError] = useState<string | null>(null);
+  
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
+
+  // 문장 입력 시 자동 문법 검사 (디바운스)
+  useEffect(() => {
+    if (!sentence.trim()) {
+      setGrammarCheck(null);
+      setShowGrammarCheck(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      handleGrammarCheck();
+    }, 1500); // 1.5초 후 자동 검사
+
+    return () => clearTimeout(timeoutId);
+  }, [sentence, selectedLanguage]);
+
+  const handleGrammarCheck = async () => {
+    if (!sentence.trim()) return;
+
+    setGrammarCheckLoading(true);
+    setGrammarCheckError(null);
+
+    try {
+      const result = await checkGrammarAndSpelling(sentence, selectedLanguage);
+      setGrammarCheck(result);
+      setShowGrammarCheck(!result.isCorrect || result.suggestions.length > 0);
+    } catch (error) {
+      console.error('Grammar check failed:', error);
+      setGrammarCheckError(error instanceof Error ? error.message : '문법 검사에 실패했습니다.');
+      setGrammarCheck(null);
+      setShowGrammarCheck(false);
+    } finally {
+      setGrammarCheckLoading(false);
+    }
+  };
+
+  const applySuggestion = (suggestion: string) => {
+    setSentence(suggestion);
+    setGrammarCheck(null);
+    setShowGrammarCheck(false);
+  };
+
+  const applyCorrection = (original: string, suggestion: string) => {
+    const correctedSentence = sentence.replace(original, suggestion);
+    setSentence(correctedSentence);
+  };
 
   const handleTranslate = async () => {
     if (!sentence.trim()) return;
@@ -55,6 +108,8 @@ export function Learn() {
         setTranslation('');
         setDifficulty('medium');
         setSaved(false);
+        setGrammarCheck(null);
+        setShowGrammarCheck(false);
       }, 2000);
     } catch (error) {
       console.error('Save failed:', error);
@@ -155,6 +210,26 @@ export function Learn() {
     }
   };
 
+  const getErrorTypeIcon = (type: string) => {
+    switch (type) {
+      case 'grammar': return '📝';
+      case 'spelling': return '🔤';
+      case 'punctuation': return '❗';
+      case 'style': return '✨';
+      default: return '💡';
+    }
+  };
+
+  const getErrorTypeColor = (type: string) => {
+    switch (type) {
+      case 'grammar': return 'text-red-600 bg-red-50 border-red-200';
+      case 'spelling': return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'punctuation': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'style': return 'text-blue-600 bg-blue-50 border-blue-200';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -185,6 +260,24 @@ export function Learn() {
         </div>
       )}
 
+      {/* Grammar Check Error Display */}
+      {grammarCheckError && (
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-orange-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-orange-700">
+                  <strong>문법 검사 오류:</strong> {grammarCheckError}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tips Section - Moved to top */}
       <div className="bg-blue-50 rounded-xl p-6">
         <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 학습 팁</h3>
@@ -195,11 +288,11 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>난이도를 적절히 설정하여 체계적으로 학습하세요</p>
+            <p>AI가 자동으로 문법과 맞춤법을 검사해드려요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>AI 번역을 활용해서 정확한 해석을 받아보세요</p>
+            <p>난이도를 적절히 설정하여 체계적으로 학습하세요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -235,7 +328,13 @@ export function Learn() {
                   rows={3}
                   value={sentence}
                   onChange={(e) => setSentence(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors ${
+                    grammarCheck && !grammarCheck.isCorrect 
+                      ? 'border-orange-300 bg-orange-50' 
+                      : grammarCheck && grammarCheck.isCorrect 
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300 focus:border-blue-500'
+                  }`}
                   placeholder={selectedLanguage === '영어' ? "예: How are you doing today?" : 
                               selectedLanguage === '프랑스어' ? "예: Comment allez-vous aujourd'hui?" :
                               selectedLanguage === '독일어' ? "예: Wie geht es Ihnen heute?" :
@@ -244,22 +343,151 @@ export function Learn() {
                               selectedLanguage === '중국어' ? "例: 你今天怎么样？" :
                               `${selectedLanguage} 문장을 입력하세요`}
                 />
-                {sentence.trim() && (
-                  <button
-                    onClick={() => playAudio(sentence, true)}
-                    disabled={isPlayingInput}
-                    className={`absolute right-3 top-3 p-2 transition-all rounded-lg ${
-                      isPlayingInput
-                        ? 'text-white bg-blue-600 animate-pulse shadow-lg'
-                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                    }`}
-                    title={`${selectedLanguage} 발음 듣기 ${isPlayingInput ? '(재생 중...)' : ''}`}
-                  >
-                    <Volume2 className="w-5 h-5" />
-                  </button>
-                )}
+                
+                {/* Grammar Check Status Indicator */}
+                <div className="absolute right-3 top-3 flex items-center space-x-2">
+                  {grammarCheckLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
+                  
+                  {grammarCheck && !grammarCheckLoading && (
+                    <div className="flex items-center">
+                      {grammarCheck.isCorrect ? (
+                        <CheckCircle className="w-5 h-5 text-green-500" title="문법 검사 완료 - 오류 없음" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-orange-500" title="문법 오류 발견" />
+                      )}
+                    </div>
+                  )}
+                  
+                  {sentence.trim() && (
+                    <button
+                      onClick={() => playAudio(sentence, true)}
+                      disabled={isPlayingInput}
+                      className={`p-2 transition-all rounded-lg ${
+                        isPlayingInput
+                          ? 'text-white bg-blue-600 animate-pulse shadow-lg'
+                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                      }`}
+                      title={`${selectedLanguage} 발음 듣기 ${isPlayingInput ? '(재생 중...)' : ''}`}
+                    >
+                      <Volume2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Grammar Check Results */}
+            {showGrammarCheck && grammarCheck && (
+              <div className="space-y-4">
+                {/* Overall Status */}
+                <div className={`p-4 rounded-lg border ${
+                  grammarCheck.isCorrect 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-orange-50 border-orange-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      {grammarCheck.isCorrect ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-orange-600 mr-2" />
+                      )}
+                      <h4 className={`font-semibold ${
+                        grammarCheck.isCorrect ? 'text-green-900' : 'text-orange-900'
+                      }`}>
+                        {grammarCheck.isCorrect ? '문법 검사 완료' : '문법 오류 발견'}
+                      </h4>
+                    </div>
+                    <span className={`text-sm font-medium ${
+                      grammarCheck.isCorrect ? 'text-green-700' : 'text-orange-700'
+                    }`}>
+                      신뢰도: {grammarCheck.confidence}%
+                    </span>
+                  </div>
+                  
+                  {!grammarCheck.isCorrect && (
+                    <p className="text-sm text-orange-700 mt-2">
+                      {grammarCheck.errors.length}개의 오류가 발견되었습니다. 아래 제안을 확인해보세요.
+                    </p>
+                  )}
+                </div>
+
+                {/* Errors */}
+                {grammarCheck.errors.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="font-medium text-gray-900">발견된 오류:</h5>
+                    {grammarCheck.errors.map((error, index) => (
+                      <div key={index} className={`p-3 rounded-lg border ${getErrorTypeColor(error.type)}`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className="mr-2">{getErrorTypeIcon(error.type)}</span>
+                              <span className="font-medium text-sm">
+                                {error.type === 'grammar' ? '문법' : 
+                                 error.type === 'spelling' ? '맞춤법' :
+                                 error.type === 'punctuation' ? '구두점' : '문체'} 오류
+                              </span>
+                            </div>
+                            <div className="text-sm space-y-1">
+                              <p><span className="font-medium">원문:</span> "{error.original}"</p>
+                              <p><span className="font-medium">제안:</span> "{error.suggestion}"</p>
+                              <p className="text-xs opacity-75">{error.explanation}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => applyCorrection(error.original, error.suggestion)}
+                            className="ml-3 px-3 py-1 text-xs font-medium bg-white rounded border hover:bg-gray-50 transition-colors"
+                          >
+                            적용
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Suggestions */}
+                {grammarCheck.suggestions.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="font-medium text-gray-900 flex items-center">
+                      <Lightbulb className="w-4 h-4 mr-2 text-yellow-500" />
+                      더 나은 표현 제안:
+                    </h5>
+                    <div className="space-y-2">
+                      {grammarCheck.suggestions.map((suggestion, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <p className="text-sm text-blue-900 flex-1">"{suggestion}"</p>
+                          <button
+                            onClick={() => applySuggestion(suggestion)}
+                            className="ml-3 px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                          >
+                            사용하기
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Corrected Text */}
+                {!grammarCheck.isCorrect && grammarCheck.correctedText !== sentence && (
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <h5 className="font-medium text-green-900 mb-2">전체 수정 제안:</h5>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-green-800 flex-1">"{grammarCheck.correctedText}"</p>
+                      <button
+                        onClick={() => applySuggestion(grammarCheck.correctedText)}
+                        className="ml-3 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                      >
+                        전체 적용
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Difficulty Selection */}
             <div>
@@ -358,6 +586,54 @@ export function Learn() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Grammar Check Info */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+        <h3 className="text-lg font-semibold text-green-900 mb-3">🤖 AI 문법 검사 기능</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-800">
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>실시간 검사:</strong> 문장 입력 후 1.5초 뒤 자동으로 문법을 검사합니다</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>다양한 오류 감지:</strong> 문법, 맞춤법, 구두점, 문체 오류를 모두 확인</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>즉시 수정:</strong> 제안된 수정사항을 클릭 한 번으로 바로 적용</p>
+          </div>
+          <div className="flex items-start">
+            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+            <p><strong>더 나은 표현:</strong> 원래 문장보다 자연스러운 표현을 제안</p>
+          </div>
+        </div>
+        
+        {/* Language-specific tip */}
+        <div className="mt-4 p-4 bg-white rounded-lg border border-green-200 shadow-sm">
+          <div className="flex items-start">
+            <span className="text-2xl mr-3">
+              {selectedLanguage === '프랑스어' ? '🇫🇷' : 
+               selectedLanguage === '독일어' ? '🇩🇪' :
+               selectedLanguage === '스페인어' ? '🇪🇸' :
+               selectedLanguage === '이탈리아어' ? '🇮🇹' :
+               selectedLanguage === '일본어' ? '🇯🇵' :
+               selectedLanguage === '중국어' ? '🇨🇳' :
+               selectedLanguage === '러시아어' ? '🇷🇺' :
+               selectedLanguage === '포르투갈어' ? '🇧🇷' :
+               selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-green-900 mb-1">{selectedLanguage} 전용 문법 검사</p>
+              <p className="text-sm text-green-800">
+                현재 학습 중인 <strong>{selectedLanguage}</strong>에 특화된 문법 검사를 제공합니다! 
+                언어별 특성을 고려한 정확한 오류 감지와 자연스러운 표현 제안을 받아보세요.
+                <span className="font-medium"> 입력창의 색상 변화로 검사 결과를 즉시 확인할 수 있습니다.</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
