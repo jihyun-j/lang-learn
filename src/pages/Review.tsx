@@ -101,6 +101,7 @@ export function Review() {
   };
 
   const playOriginalAudio = async () => {
+      const voices = window.speechSynthesis.getVoices();
       const utterance = new SpeechSynthesisUtterance("Bonjour");
       utterance.lang = 'fr-FR'
       utterance.rate = 0.8; // 조금 천천히
