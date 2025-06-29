@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Volume2, RotateCcw, CheckCircle, XCircle, Globe } from 'lucide-react';
+import { Mic, MicOff, Volume2, RotateCcw, CheckCircle, XCircle, Globe, Bug } from 'lucide-react';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { transcribeAudio, compareSentences } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
-import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
+import { speakText, stopSpeech, isSpeaking, debugVoices } from '../utils/textToSpeech';
 
 export function Review() {
   const [currentSentence, setCurrentSentence] = useState<Sentence | null>(null);
@@ -20,6 +20,7 @@ export function Review() {
   const [error, setError] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
   
@@ -100,10 +101,11 @@ export function Review() {
     }
   };
 
-  // 🎵 TTS 시스템 사용 - 수정된 버전
+  // 🎵 강화된 TTS 시스템 사용
   const playOriginalAudio = async () => {
     if (!currentSentence?.english_text) {
       console.warn('⚠️ [Review] No sentence text available');
+      setAudioError('재생할 문장이 없습니다.');
       return;
     }
 
@@ -122,10 +124,16 @@ export function Review() {
       if (isSpeaking()) {
         console.log('🛑 [Review] Stopping other audio');
         stopSpeech();
+        await new Promise(resolve => setTimeout(resolve, 100)); // 잠시 대기
       }
 
       setIsPlayingAudio(true);
       console.log(`🎵 [Review] Starting playback: "${currentSentence.english_text}" in ${selectedLanguage}`);
+
+      // 디버그 모드에서 음성 정보 출력
+      if (debugMode) {
+        debugVoices(selectedLanguage);
+      }
 
       // TTS 매니저를 사용하여 음성 재생
       await speakText(currentSentence.english_text, selectedLanguage);
@@ -140,8 +148,8 @@ export function Review() {
       const errorMessage = error instanceof Error ? error.message : '음성 재생에 실패했습니다.';
       setAudioError(errorMessage);
       
-      // 3초 후 에러 메시지 자동 제거
-      setTimeout(() => setAudioError(null), 3000);
+      // 5초 후 에러 메시지 자동 제거
+      setTimeout(() => setAudioError(null), 5000);
     }
   };
 
@@ -153,6 +161,14 @@ export function Review() {
     setIsPlayingAudio(false);
     clearRecording();
     loadRandomSentence();
+  };
+
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode);
+    if (!debugMode) {
+      console.log('🔍 [Debug] Debug mode enabled');
+      debugVoices(selectedLanguage);
+    }
   };
 
   if (!currentSentence) {
@@ -176,6 +192,16 @@ export function Review() {
         <div className="flex items-center justify-center mb-4">
           <Globe className="w-6 h-6 text-blue-600 mr-2" />
           <span className="text-lg font-medium text-blue-600">{selectedLanguage}</span>
+          {/* Debug Toggle */}
+          <button
+            onClick={toggleDebugMode}
+            className={`ml-4 p-2 rounded-lg transition-colors ${
+              debugMode ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
+            }`}
+            title="디버그 모드 토글"
+          >
+            <Bug className="w-4 h-4" />
+          </button>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">오늘의 복습</h1>
         <p className="text-lg text-gray-600">음성으로 발음을 연습하고 AI가 정확도를 판별해드려요</p>
@@ -193,6 +219,9 @@ export function Review() {
                 <p className="text-sm text-red-700">
                   <strong>음성 재생 오류:</strong> {audioError}
                 </p>
+                <p className="text-xs text-red-600 mt-1">
+                  브라우저 설정에서 {selectedLanguage} 언어팩이 설치되어 있는지 확인해주세요.
+                </p>
               </div>
             </div>
           </div>
@@ -207,7 +236,7 @@ export function Review() {
               </h2>
               <p className="text-2xl font-bold text-blue-900 mb-6">{currentSentence.korean_translation}</p>
               
-              {/* Pronunciation button - 수정된 버전 */}
+              {/* Pronunciation button - 강화된 버전 */}
               <button
                 onClick={playOriginalAudio}
                 disabled={isPlayingAudio}
@@ -222,12 +251,15 @@ export function Review() {
                 {isPlayingAudio ? '재생 중...' : '발음 듣기'}
               </button>
 
-              {/* 디버깅 정보 표시 (개발용) */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
-                  <p>Debug: {currentSentence.english_text}</p>
+              {/* 디버깅 정보 표시 */}
+              {debugMode && (
+                <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600 text-left">
+                  <p><strong>Debug Info:</strong></p>
+                  <p>Text: {currentSentence.english_text}</p>
                   <p>Language: {selectedLanguage}</p>
                   <p>Playing: {isPlayingAudio ? 'Yes' : 'No'}</p>
+                  <p>TTS Available: {typeof speechSynthesis !== 'undefined' ? 'Yes' : 'No'}</p>
+                  <p>Voices Count: {speechSynthesis?.getVoices().length || 0}</p>
                 </div>
               )}
             </div>
@@ -354,6 +386,18 @@ export function Review() {
                 </div>
               </div>
             )}
+
+            {/* Audio Status Indicator */}
+            {isPlayingAudio && (
+              <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
+                <div className="flex items-center">
+                  <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />
+                  <p className="text-sm text-blue-800">
+                    <strong>{selectedLanguage} 발음 재생 중...</strong> 중지하려면 발음 듣기 버튼을 다시 클릭하세요.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -389,20 +433,25 @@ export function Review() {
                   <p className="text-sm text-blue-800">
                     새로운 TTS 시스템으로 <strong>정확한 프랑스어 발음</strong>을 제공합니다! 
                     연음(liaison)과 무음 문자에 주의하며 들어보세요.
+                    {debugMode && <span className="font-medium"> (디버그 모드 활성화됨)</span>}
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Audio Status Indicator */}
-          {isPlayingAudio && (
-            <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
-              <div className="flex items-center">
-                <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />
-                <p className="text-sm text-blue-800">
-                  <strong>{selectedLanguage} 발음 재생 중...</strong> 중지하려면 발음 듣기 버튼을 다시 클릭하세요.
-                </p>
+          {/* Debug Info */}
+          {debugMode && (
+            <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-start">
+                <Bug className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-yellow-900 mb-1">디버그 모드</p>
+                  <p className="text-xs text-yellow-800">
+                    브라우저 콘솔에서 TTS 음성 정보를 확인할 수 있습니다. 
+                    프랑스어 음성이 없다면 시스템 설정에서 언어팩을 설치해주세요.
+                  </p>
+                </div>
               </div>
             </div>
           )}

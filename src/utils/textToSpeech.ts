@@ -38,17 +38,17 @@ export class TextToSpeechManager {
             console.warn('⚠️ [TTS] Voice loading timeout, proceeding anyway');
             loadVoices();
           }
-        }, 2000);
+        }, 3000);
       }
     });
   }
 
-  private getLanguageCode(language: string): string {
+  private getLanguageCode(language: string): string[] {
     const languageMap: Record<string, string[]> = {
-      '영어': ['en-US', 'en-GB', 'en-AU', 'en'],
-      '프랑스어': ['fr-FR', 'fr-CA', 'fr-BE', 'fr'],
+      '영어': ['en-US', 'en-GB', 'en-AU', 'en-CA', 'en'],
+      '프랑스어': ['fr-FR', 'fr-CA', 'fr-BE', 'fr-CH', 'fr'],
       '독일어': ['de-DE', 'de-AT', 'de-CH', 'de'],
-      '스페인어': ['es-ES', 'es-MX', 'es-AR', 'es'],
+      '스페인어': ['es-ES', 'es-MX', 'es-AR', 'es-US', 'es'],
       '이탈리아어': ['it-IT', 'it-CH', 'it'],
       '일본어': ['ja-JP', 'ja'],
       '중국어': ['zh-CN', 'zh-TW', 'zh-HK', 'zh'],
@@ -64,16 +64,18 @@ export class TextToSpeechManager {
 
   private findBestVoice(language: string): SpeechSynthesisVoice | null {
     if (!this.isInitialized || this.voices.length === 0) {
-      console.warn('⚠️ [TTS] Voices not initialized');
-      return null;
+      console.warn('⚠️ [TTS] Voices not initialized, forcing reload...');
+      this.voices = speechSynthesis.getVoices();
+      console.log(`🔄 [TTS] Force loaded ${this.voices.length} voices`);
     }
 
     const targetCodes = this.getLanguageCode(language);
     console.log(`🔍 [TTS] Finding voice for ${language}, target codes:`, targetCodes);
+    console.log(`🎤 [TTS] Available voices:`, this.voices.map(v => `${v.name} (${v.lang}) ${v.default ? '[DEFAULT]' : ''}`));
 
-    // 1. 정확한 언어 코드 매칭
+    // 1. 정확한 언어 코드 매칭 (우선순위 높음)
     for (const code of targetCodes) {
-      const exactMatch = this.voices.find(v => v.lang === code);
+      const exactMatch = this.voices.find(v => v.lang.toLowerCase() === code.toLowerCase());
       if (exactMatch) {
         console.log(`✅ [TTS] Exact match found: ${exactMatch.name} (${exactMatch.lang})`);
         return exactMatch;
@@ -82,29 +84,30 @@ export class TextToSpeechManager {
 
     // 2. 언어 계열 매칭 (fr-*, en-* 등)
     for (const code of targetCodes) {
-      const prefix = code.split('-')[0];
-      const familyMatch = this.voices.find(v => v.lang.startsWith(prefix));
+      const prefix = code.split('-')[0].toLowerCase();
+      const familyMatch = this.voices.find(v => v.lang.toLowerCase().startsWith(prefix));
       if (familyMatch) {
         console.log(`✅ [TTS] Family match found: ${familyMatch.name} (${familyMatch.lang})`);
         return familyMatch;
       }
     }
 
-    // 3. 이름 기반 매칭
+    // 3. 이름 기반 매칭 (더 강화된 키워드)
     const nameKeywords: Record<string, string[]> = {
-      '프랑스어': ['french', 'français', 'france', 'marie', 'amelie'],
-      '독일어': ['german', 'deutsch', 'germany', 'hans', 'petra'],
-      '스페인어': ['spanish', 'español', 'spain', 'carlos', 'monica'],
-      '이탈리아어': ['italian', 'italiano', 'italy', 'luca', 'alice'],
-      '일본어': ['japanese', '日本語', 'japan', 'kyoko', 'otoya'],
-      '중국어': ['chinese', '中文', 'china', 'yaoyao', 'kangkang'],
-      '러시아어': ['russian', 'русский', 'russia', 'pavel', 'irina']
+      '프랑스어': ['french', 'français', 'france', 'marie', 'amelie', 'thomas', 'julie', 'fr-', 'fr_'],
+      '독일어': ['german', 'deutsch', 'germany', 'hans', 'petra', 'de-', 'de_'],
+      '스페인어': ['spanish', 'español', 'spain', 'carlos', 'monica', 'es-', 'es_'],
+      '이탈리아어': ['italian', 'italiano', 'italy', 'luca', 'alice', 'it-', 'it_'],
+      '일본어': ['japanese', '日本語', 'japan', 'kyoko', 'otoya', 'ja-', 'ja_'],
+      '중국어': ['chinese', '中文', 'china', 'yaoyao', 'kangkang', 'zh-', 'zh_'],
+      '러시아어': ['russian', 'русский', 'russia', 'pavel', 'irina', 'ru-', 'ru_']
     };
 
     const keywords = nameKeywords[language] || [];
     for (const keyword of keywords) {
       const nameMatch = this.voices.find(v => 
-        v.name.toLowerCase().includes(keyword.toLowerCase())
+        v.name.toLowerCase().includes(keyword.toLowerCase()) ||
+        v.lang.toLowerCase().includes(keyword.toLowerCase())
       );
       if (nameMatch) {
         console.log(`✅ [TTS] Name match found: ${nameMatch.name} (${nameMatch.lang})`);
@@ -112,16 +115,32 @@ export class TextToSpeechManager {
       }
     }
 
-    // 4. 기본 음성 사용
+    // 4. 특별한 프랑스어 처리 (Chrome/Edge에서 자주 사용되는 음성들)
+    if (language === '프랑스어') {
+      const frenchVoices = this.voices.filter(v => 
+        v.name.toLowerCase().includes('fr') ||
+        v.lang.toLowerCase().includes('fr') ||
+        v.name.toLowerCase().includes('marie') ||
+        v.name.toLowerCase().includes('thomas') ||
+        v.name.toLowerCase().includes('julie')
+      );
+      
+      if (frenchVoices.length > 0) {
+        console.log(`✅ [TTS] French voice found: ${frenchVoices[0].name} (${frenchVoices[0].lang})`);
+        return frenchVoices[0];
+      }
+    }
+
+    // 5. 기본 음성 사용
     const defaultVoice = this.voices.find(v => v.default);
     if (defaultVoice) {
-      console.log(`✅ [TTS] Using default voice: ${defaultVoice.name} (${defaultVoice.lang})`);
+      console.log(`⚠️ [TTS] Using default voice for ${language}: ${defaultVoice.name} (${defaultVoice.lang})`);
       return defaultVoice;
     }
 
-    // 5. 첫 번째 음성 사용
+    // 6. 첫 번째 음성 사용
     if (this.voices.length > 0) {
-      console.log(`✅ [TTS] Using first available voice: ${this.voices[0].name} (${this.voices[0].lang})`);
+      console.log(`⚠️ [TTS] Using first available voice for ${language}: ${this.voices[0].name} (${this.voices[0].lang})`);
       return this.voices[0];
     }
 
@@ -169,7 +188,7 @@ export class TextToSpeechManager {
 
         // 이벤트 핸들러
         utterance.onstart = () => {
-          console.log(`🎵 [TTS] Speech started: "${text}"`);
+          console.log(`🎵 [TTS] Speech started: "${text}" with voice: ${utterance.voice?.name || 'default'}`);
         };
 
         utterance.onend = () => {
@@ -179,7 +198,7 @@ export class TextToSpeechManager {
         };
 
         utterance.onerror = (event) => {
-          console.error(`🚨 [TTS] Speech error:`, event.error);
+          console.error(`🚨 [TTS] Speech error:`, event.error, event);
           this.currentUtterance = null;
           
           // 사용자 친화적 에러 메시지
@@ -198,6 +217,9 @@ export class TextToSpeechManager {
             case 'synthesis-unavailable':
               errorMessage += ' 음성 합성 기능을 사용할 수 없습니다.';
               break;
+            case 'language-unavailable':
+              errorMessage += ` ${language} 음성을 찾을 수 없습니다. 시스템 설정에서 언어팩을 확인해주세요.`;
+              break;
             default:
               errorMessage += ` (오류: ${event.error})`;
           }
@@ -210,18 +232,23 @@ export class TextToSpeechManager {
           this.currentUtterance = null;
         };
 
+        // 재생 시작 전 브라우저별 호환성 체크
+        if (typeof speechSynthesis === 'undefined') {
+          throw new Error('이 브라우저는 음성 합성을 지원하지 않습니다.');
+        }
+
         // 재생 시작
-        console.log(`🚀 [TTS] Starting synthesis...`);
+        console.log(`🚀 [TTS] Starting synthesis with voice: ${utterance.voice?.name || 'system default'}, lang: ${utterance.lang}`);
         speechSynthesis.speak(utterance);
 
-        // 안전장치: 10초 후 타임아웃
+        // 안전장치: 15초 후 타임아웃 (프랑스어는 더 길 수 있음)
         setTimeout(() => {
           if (this.currentUtterance === utterance) {
             console.warn('⏰ [TTS] Speech timeout, forcing completion');
             this.stop();
             resolve();
           }
-        }, 10000);
+        }, 15000);
 
       } catch (error) {
         console.error('🚨 [TTS] Exception during speech:', error);
@@ -264,7 +291,7 @@ export class TextToSpeechManager {
         utterance.pitch = 1.0;
     }
 
-    console.log(`⚙️ [TTS] Configured for ${language}: rate=${utterance.rate}, pitch=${utterance.pitch}`);
+    console.log(`⚙️ [TTS] Configured for ${language}: rate=${utterance.rate}, pitch=${utterance.pitch}, voice=${utterance.voice?.name || 'default'}`);
   }
 
   public stop(): void {
@@ -291,6 +318,22 @@ export class TextToSpeechManager {
       )
     );
   }
+
+  // 디버깅용 메서드
+  public debugVoices(language?: string): void {
+    console.log('🔍 [TTS Debug] All available voices:');
+    this.voices.forEach((voice, index) => {
+      console.log(`${index + 1}. ${voice.name} (${voice.lang}) ${voice.default ? '[DEFAULT]' : ''} ${voice.localService ? '[LOCAL]' : '[REMOTE]'}`);
+    });
+
+    if (language) {
+      console.log(`🔍 [TTS Debug] Voices for ${language}:`);
+      const languageVoices = this.getVoicesForLanguage(language);
+      languageVoices.forEach((voice, index) => {
+        console.log(`${index + 1}. ${voice.name} (${voice.lang})`);
+      });
+    }
+  }
 }
 
 // 전역 인스턴스 생성
@@ -307,4 +350,9 @@ export const stopSpeech = (): void => {
 
 export const isSpeaking = (): boolean => {
   return ttsManager.isPlaying();
+};
+
+// 디버깅용 함수
+export const debugVoices = (language?: string): void => {
+  ttsManager.debugVoices(language);
 };
