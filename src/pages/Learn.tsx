@@ -4,7 +4,6 @@ import { translateSentence } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
-import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
 
 export function Learn() {
   const [sentence, setSentence] = useState('');
@@ -65,55 +64,7 @@ export function Learn() {
 
   // 🎵 새로운 TTS 시스템 사용
   const playAudio = async (text: string, isInput: boolean = false) => {
-    if (!text.trim()) return;
-
-    setAudioError(null);
-
-    try {
-      const currentlyPlaying = isInput ? isPlayingInput : isPlayingResult;
-      
-      // 이미 재생 중인 경우 중지
-      if (currentlyPlaying && isSpeaking()) {
-        console.log('🛑 [Audio] Stopping current playback');
-        stopSpeech();
-        setIsPlayingInput(false);
-        setIsPlayingResult(false);
-        return;
-      }
-
-      // 다른 음성 중지
-      if (isSpeaking()) {
-        stopSpeech();
-        setIsPlayingInput(false);
-        setIsPlayingResult(false);
-      }
-
-      if (isInput) {
-        setIsPlayingInput(true);
-      } else {
-        setIsPlayingResult(true);
-      }
-
-      console.log(`🎵 [Audio] Starting playback: "${text}" in ${selectedLanguage}`);
-
-      // TTS 매니저를 사용하여 음성 재생
-      await speakText(text, selectedLanguage);
-      
-      console.log('✅ [Audio] Playback completed successfully');
-      setIsPlayingInput(false);
-      setIsPlayingResult(false);
-
-    } catch (error) {
-      console.error('🚨 [Audio] Playback failed:', error);
-      setIsPlayingInput(false);
-      setIsPlayingResult(false);
-      
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-      setAudioError(errorMessage);
-      
-      // 3초 후 에러 메시지 자동 제거
-      setTimeout(() => setAudioError(null), 3000);
-    }
+  
   };
 
   return (
