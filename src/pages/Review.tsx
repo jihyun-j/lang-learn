@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sentence } from '../types';
-import { speakText, stopSpeech, isSpeaking } from '../utils/textToSpeech';
 
 export function Review() {
   const [currentSentence, setCurrentSentence] = useState<Sentence | null>(null);
