@@ -608,53 +608,6 @@ export function Review() {
           </div>
         </div>
       )}
-
-      {/* Tips Section */}
-      <div className="bg-blue-50 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 {t.review.tips}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>📅 {t.review.byDate}:</strong> {t.review.tipDate}</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🎯 {t.review.byDifficulty}:</strong> {t.review.tipDifficulty}</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>⚠️ {t.review.mistakes}:</strong> {t.review.tipMistakes}</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>🔊 {t.quiz.listenPronunciation}:</strong> {t.review.tipPronunciation}</p>
-          </div>
-        </div>
-
-        {/* Language-specific tip */}
-        <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
-          <div className="flex items-start">
-            <span className="text-2xl mr-3">
-              {selectedLanguage === '프랑스어' ? '🇫🇷' : 
-               selectedLanguage === '독일어' ? '🇩🇪' :
-               selectedLanguage === '스페인어' ? '🇪🇸' :
-               selectedLanguage === '이탈리아어' ? '🇮🇹' :
-               selectedLanguage === '일본어' ? '🇯🇵' :
-               selectedLanguage === '중국어' ? '🇨🇳' :
-               selectedLanguage === '러시아어' ? '🇷🇺' :
-               selectedLanguage === '포르투갈어' ? '🇧🇷' :
-               selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-blue-900 mb-1">{selectedLanguage} {locale === 'en' ? 'Pronunciation Feature' : '발음 특화 기능'}</p>
-              <p className="text-sm text-blue-800">
-                {locale === 'en' ? 'Provides accurate pronunciation for' : '현재 학습 중인'} <strong>{selectedLanguage}</strong>{locale === 'en' ? ' you are currently learning!' : '의 정확한 발음을 제공합니다!'} 
-                {locale === 'en' ? ' Learn accurate intonation and pronunciation by listening to native speakers.' : ' 네이티브 스피커의 발음을 들으며 정확한 억양과 발음을 익혀보세요.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
