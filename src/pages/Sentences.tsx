@@ -98,7 +98,67 @@ export function Sentences() {
   };
 
   const playAudio = async (text: string, sentenceId: string) => {
-   
+    if (!text.trim()) return;
+
+    setAudioError(null);
+
+    try {
+      // 이미 재생 중인 경우 중지
+      if (playingId === sentenceId) {
+        window.speechSynthesis.cancel();
+        setPlayingId(null);
+        return;
+      }
+
+      // 다른 음성 중지
+      window.speechSynthesis.cancel();
+      setPlayingId(sentenceId);
+
+      // 음성 합성 설정
+      const utterance = new SpeechSynthesisUtterance(text);
+      const languageCode = getLanguageCode(selectedLanguage);
+      utterance.lang = languageCode;
+      utterance.rate = 0.8; // 조금 느리게 (학습에 적합)
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // 사용 가능한 음성 중에서 해당 언어 음성 찾기
+      const voices = window.speechSynthesis.getVoices();
+      const targetVoice = voices.find(voice => 
+        voice.lang.startsWith(languageCode.split('-')[0]) || 
+        voice.lang === languageCode
+      );
+      
+      if (targetVoice) {
+        utterance.voice = targetVoice;
+      }
+
+      // 재생 완료 시 상태 초기화
+      utterance.onend = () => {
+        setPlayingId(null);
+      };
+
+      // 에러 처리
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setPlayingId(null);
+        setAudioError(`음성 재생 중 오류가 발생했습니다: ${event.error}`);
+        setTimeout(() => setAudioError(null), 3000);
+      };
+
+      // 음성 재생
+      window.speechSynthesis.speak(utterance);
+
+    } catch (error) {
+      console.error('Audio playback failed:', error);
+      setPlayingId(null);
+      
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setAudioError(errorMessage);
+      
+      // 3초 후 에러 메시지 자동 제거
+      setTimeout(() => setAudioError(null), 3000);
+    }
   };
 
   const startQuiz = () => {
@@ -425,21 +485,29 @@ export function Sentences() {
         </div>
         
         {/* Language-specific tip */}
-        {selectedLanguage === '프랑스어' && (
-          <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
-            <div className="flex items-start">
-              <span className="text-2xl mr-3">🇫🇷</span>
-              <div>
-                <p className="text-sm font-semibold text-blue-900 mb-1">프랑스어 발음 특화 기능</p>
-                <p className="text-sm text-blue-800">
-                  새로운 TTS 시스템으로 <strong>정확한 프랑스어 발음</strong>을 제공합니다! 
-                  연음(liaison)과 무음 문자에 주의하며 들어보세요. 
-                  <span className="font-medium">재생 중일 때는 버튼이 파란색으로 표시되며, 다시 클릭하면 중지됩니다.</span>
-                </p>
-              </div>
+        <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+          <div className="flex items-start">
+            <span className="text-2xl mr-3">
+              {selectedLanguage === '프랑스어' ? '🇫🇷' : 
+               selectedLanguage === '독일어' ? '🇩🇪' :
+               selectedLanguage === '스페인어' ? '🇪🇸' :
+               selectedLanguage === '이탈리아어' ? '🇮🇹' :
+               selectedLanguage === '일본어' ? '🇯🇵' :
+               selectedLanguage === '중국어' ? '🇨🇳' :
+               selectedLanguage === '러시아어' ? '🇷🇺' :
+               selectedLanguage === '포르투갈어' ? '🇧🇷' :
+               selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-blue-900 mb-1">{selectedLanguage} 발음 특화 기능</p>
+              <p className="text-sm text-blue-800">
+                현재 학습 중인 <strong>{selectedLanguage}</strong>의 정확한 발음을 제공합니다! 
+                네이티브 스피커의 발음을 들으며 정확한 억양과 발음을 익혀보세요.
+                <span className="font-medium"> 재생 중일 때는 버튼이 파란색으로 표시되며, 다시 클릭하면 중지됩니다.</span>
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Audio Status Indicator */}
         {playingId && (
