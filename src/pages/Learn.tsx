@@ -569,53 +569,6 @@ export function Learn() {
           </div>
         </div>
       </div>
-
-      {/* Enhanced Grammar Check Info */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
-        <h3 className="text-lg font-semibold text-green-900 mb-3">🤖 {t.learn.grammarCheckTitle}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-green-800">
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>{t.learn.manualCheck}:</strong> {t.learn.grammarCheckDesc}</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>{t.learn.errorDetection}:</strong> {t.learn.errorDetection}</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>{t.learn.instantFix}:</strong> {t.learn.instantFix}</p>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p><strong>{t.learn.overallFix}:</strong> {t.learn.overallFix}</p>
-          </div>
-        </div>
-        
-        {/* Language-specific tip */}
-        <div className="mt-4 p-4 bg-white rounded-lg border border-green-200 shadow-sm">
-          <div className="flex items-start">
-            <span className="text-2xl mr-3">
-              {selectedLanguage === '프랑스어' ? '🇫🇷' : 
-               selectedLanguage === '독일어' ? '🇩🇪' :
-               selectedLanguage === '스페인어' ? '🇪🇸' :
-               selectedLanguage === '이탈리아어' ? '🇮🇹' :
-               selectedLanguage === '일본어' ? '🇯🇵' :
-               selectedLanguage === '중국어' ? '🇨🇳' :
-               selectedLanguage === '러시아어' ? '🇷🇺' :
-               selectedLanguage === '포르투갈어' ? '🇧🇷' :
-               selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-green-900 mb-1">{selectedLanguage} {t.learn.languageSpecific}</p>
-              <p className="text-sm text-green-800">
-                {locale === 'en' ? 'Currently learning' : '현재 학습 중인'} <strong>{selectedLanguage}</strong>{t.learn.languageSpecificDesc}
-                <span className="font-medium"> {t.learn.clickButton}</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
