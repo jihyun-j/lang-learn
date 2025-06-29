@@ -106,10 +106,10 @@ export function Review() {
 
       const frVoice = voices.find(v => v.lang.startsWith('fr'));
       utterance.lang = 'fr-FR'
-     if (frVoice) utterance.voice = frVoice;
-   window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-  if (!frVoice) alert('프랑스어 음성이 없음');
+      if (frVoice) utterance.voice = frVoice;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      if (!frVoice) alert('프랑스어 음성이 없음');
   };
 
 
