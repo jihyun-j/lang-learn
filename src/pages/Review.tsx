@@ -117,15 +117,7 @@ export function Review() {
 
   const playOriginalAudio = async () => {
       
-      const voices = window.speechSynthesis.getVoices();
-      const utterance = new SpeechSynthesisUtterance("Bonjour");
-
-      const frVoice = voices.find(v => v.lang.startsWith('fr'));
-      utterance.lang = 'fr-FR'
-      if (frVoice) utterance.voice = frVoice;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-      if (!frVoice) alert('프랑스어 음성이 없음');
+     
   };
 
 
