@@ -107,7 +107,7 @@ export function Review() {
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-    window.speechSynthesis(utterance)
+    window.speechSynthesis.speak(utterance)
   };
 
 
