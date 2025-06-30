@@ -77,13 +77,18 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Floating Logo */}
       <div className="fixed top-6 right-6 z-50">
-        <div className="bg-white rounded-full shadow-lg p-3 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+        <a 
+          href="https://bolt.new/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="block bg-white rounded-full shadow-lg p-3 hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        >
           <img 
             src="/black_circle_360x360.png" 
             alt="LangLearn Logo" 
             className="w-12 h-12 object-contain"
           />
-        </div>
+        </a>
       </div>
 
       {/* Sidebar */}
