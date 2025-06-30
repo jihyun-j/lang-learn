@@ -334,11 +334,10 @@ export function Sentences() {
       {/* Table Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
-          <div className="col-span-4">{t.sentences.sentence}</div>
+          <div className="col-span-5">{t.sentences.sentence}</div>
           <div className="col-span-3">{t.sentences.translation}</div>
-          <div className="col-span-2">키워드</div>
           <div className="col-span-1">{t.sentences.difficulty}</div>
-          <div className="col-span-1">{t.sentences.registeredDate}</div>
+          <div className="col-span-2">{t.sentences.registeredDate}</div>
           <div className="col-span-1">{t.sentences.actions}</div>
         </div>
       </div>
@@ -354,7 +353,7 @@ export function Sentences() {
             }`}>
               <div className="grid grid-cols-12 gap-4 text-sm">
                 {/* 문장 컬럼 */}
-                <div className="col-span-4">
+                <div className="col-span-5">
                   <div className="flex items-start space-x-3">
                     <button
                       onClick={() => playAudio(
@@ -385,7 +384,29 @@ export function Sentences() {
                           placeholder={`${selectedLanguage} ${t.learn.enterSentence}`}
                         />
                       ) : (
-                        <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
+                        <div>
+                          <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
+                          {/* 키워드를 문장 하단에 표시 */}
+                          {sentence.keywords && sentence.keywords.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {sentence.keywords.slice(0, 4).map((keyword, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200"
+                                  title={keyword}
+                                >
+                                  <Tag className="w-2.5 h-2.5 mr-1" />
+                                  {keyword.length > 10 ? `${keyword.substring(0, 10)}...` : keyword}
+                                </span>
+                              ))}
+                              {sentence.keywords.length > 4 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  +{sentence.keywords.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -400,31 +421,6 @@ export function Sentences() {
                     </div>
                   ) : (
                     <p className="text-gray-700 break-words leading-relaxed">{sentence.korean_translation}</p>
-                  )}
-                </div>
-
-                {/* 키워드 컬럼 */}
-                <div className="col-span-2">
-                  {sentence.keywords && sentence.keywords.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {sentence.keywords.slice(0, 3).map((keyword, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200"
-                          title={keyword}
-                        >
-                          <Tag className="w-3 h-3 mr-1" />
-                          {keyword.length > 8 ? `${keyword.substring(0, 8)}...` : keyword}
-                        </span>
-                      ))}
-                      {sentence.keywords.length > 3 && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          +{sentence.keywords.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-gray-400 text-xs">-</span>
                   )}
                 </div>
 
@@ -448,9 +444,9 @@ export function Sentences() {
                 </div>
 
                 {/* 등록일 컬럼 */}
-                <div className="col-span-1">
-                  <p className="text-gray-600 text-xs">
-                    {format(new Date(sentence.created_at), 'MM.dd')}
+                <div className="col-span-2">
+                  <p className="text-gray-600">
+                    {format(new Date(sentence.created_at), 'yyyy.MM.dd')}
                   </p>
                 </div>
 
