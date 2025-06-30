@@ -425,7 +425,7 @@ export function Profile() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile.joinDate}</label>
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-gray-900">{format(new Date(profile.created_at), 'yyyy년 MM월 dd일')}</p>
+              <p className="text-gray-900">{format(new Date(profile.created_at), locale === 'en' ? 'MMM dd, yyyy' : 'yyyy년 MM월 dd일')}</p>
             </div>
           </div>
 
@@ -546,7 +546,7 @@ export function Profile() {
               <p className="text-sm font-medium text-gray-600">{t.profile.totalSentences}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.totalSentences}</p>
               <p className="text-xs text-green-600 mt-1">
-                {stats.totalSentences > 0 ? `+${Math.min(3, stats.totalSentences)} ${t.profile.thisWeek}` : '0 this week'}
+                {stats.totalSentences > 0 ? `+${Math.min(3, stats.totalSentences)} ${t.profile.thisWeek}` : `0 ${t.profile.thisWeek}`}
               </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-full">
@@ -561,7 +561,7 @@ export function Profile() {
               <p className="text-sm font-medium text-gray-600">{t.profile.totalReviews}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.totalReviews}</p>
               <p className="text-xs text-green-600 mt-1">
-                {stats.totalReviews > 0 ? `+${Math.min(12, stats.totalReviews)} ${t.profile.thisWeek}` : '0 this week'}
+                {stats.totalReviews > 0 ? `+${Math.min(12, stats.totalReviews)} ${t.profile.thisWeek}` : `0 ${t.profile.thisWeek}`}
               </p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">
@@ -576,7 +576,7 @@ export function Profile() {
               <p className="text-sm font-medium text-gray-600">{t.profile.averageAccuracy}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.averageAccuracy}%</p>
               <p className="text-xs text-green-600 mt-1">
-                {stats.averageAccuracy > 75 ? '+5% ' + t.profile.lastWeek : 'Keep practicing!'}
+                {stats.averageAccuracy > 75 ? `+5% ${t.profile.lastWeek}` : (locale === 'en' ? 'Keep practicing!' : '계속 연습하세요!')}
               </p>
             </div>
             <div className="p-3 bg-yellow-100 rounded-full">
