@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X, Save, XCircle, Tag } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X, Save, XCircle, Tag, StickyNote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -36,6 +36,15 @@ export function Sentences() {
   const [editingData, setEditingData] = useState<EditingState | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  
+  // 설명 모달 관련 상태
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
+  const [selectedSentenceExplanation, setSelectedSentenceExplanation] = useState<{
+    sentence: string;
+    translation: string;
+    explanation: string;
+    keywords: string[];
+  } | null>(null);
   
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
@@ -189,6 +198,44 @@ export function Sentences() {
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  // 설명 모달 열기
+  const showExplanation = async (sentence: Sentence) => {
+    // 기본 정보 설정
+    let explanationData = {
+      sentence: sentence.english_text,
+      translation: sentence.korean_translation,
+      explanation: '',
+      keywords: sentence.keywords || []
+    };
+
+    // AI로부터 추가 설명 가져오기 (선택적)
+    try {
+      const result = await translateSentence(
+        sentence.english_text,
+        selectedLanguage,
+        locale === 'en' ? 'English' : '한국어'
+      );
+      
+      if (result.explanation) {
+        explanationData.explanation = result.explanation;
+      } else {
+        // 기본 설명 생성
+        explanationData.explanation = locale === 'en' 
+          ? `This sentence demonstrates common usage patterns in ${selectedLanguage}. Practice pronunciation and pay attention to the structure.`
+          : `이 문장은 ${selectedLanguage}의 일반적인 사용 패턴을 보여줍니다. 발음을 연습하고 구조에 주의를 기울이세요.`;
+      }
+    } catch (error) {
+      console.warn('Failed to get additional explanation:', error);
+      // 기본 설명 사용
+      explanationData.explanation = locale === 'en' 
+        ? `This sentence demonstrates common usage patterns in ${selectedLanguage}. Practice pronunciation and pay attention to the structure.`
+        : `이 문장은 ${selectedLanguage}의 일반적인 사용 패턴을 보여줍니다. 발음을 연습하고 구조에 주의를 기울이세요.`;
+    }
+
+    setSelectedSentenceExplanation(explanationData);
+    setShowExplanationModal(true);
   };
 
   // 언어별 음성 코드 매핑
@@ -479,6 +526,13 @@ export function Sentences() {
                     ) : (
                       <>
                         <button
+                          onClick={() => showExplanation(sentence)}
+                          className="p-1 text-gray-400 hover:text-yellow-600 transition-colors rounded hover:bg-yellow-50"
+                          title={locale === 'en' ? 'View explanation' : '설명 보기'}
+                        >
+                          <StickyNote className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => startEditing(sentence)}
                           className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-blue-50"
                           title={t.common.edit}
@@ -746,6 +800,102 @@ export function Sentences() {
 
       {/* Content */}
       <ListView />
+
+      {/* Explanation Modal */}
+      {showExplanationModal && selectedSentenceExplanation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <StickyNote className="w-6 h-6 text-yellow-600 mr-2" />
+                  {locale === 'en' ? 'Sentence Explanation' : '문장 설명'}
+                </h3>
+                <button
+                  onClick={() => setShowExplanationModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Original Sentence */}
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                    {selectedLanguage} {locale === 'en' ? 'Original' : '원문'}
+                  </h4>
+                  <p className="text-lg font-medium text-blue-800">
+                    {selectedSentenceExplanation.sentence}
+                  </p>
+                </div>
+
+                {/* Translation */}
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <h4 className="text-sm font-semibold text-green-900 mb-2">
+                    {locale === 'en' ? 'Korean Translation' : '한국어 번역'}
+                  </h4>
+                  <p className="text-lg font-medium text-green-800">
+                    {selectedSentenceExplanation.translation}
+                  </p>
+                </div>
+
+                {/* Keywords */}
+                {selectedSentenceExplanation.keywords.length > 0 && (
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center">
+                      <Tag className="w-4 h-4 mr-2" />
+                      {locale === 'en' ? 'Key Expressions' : '주요 표현'}
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedSentenceExplanation.keywords.map((keyword, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-300"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Explanation */}
+                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <h4 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center">
+                    <StickyNote className="w-4 h-4 mr-2" />
+                    {locale === 'en' ? 'Learning Notes' : '학습 노트'}
+                  </h4>
+                  <p className="text-sm text-yellow-800 leading-relaxed">
+                    {selectedSentenceExplanation.explanation}
+                  </p>
+                </div>
+
+                {/* Study Tips */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                    💡 {locale === 'en' ? 'Study Tips' : '학습 팁'}
+                  </h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    <li>• {locale === 'en' ? 'Practice pronunciation by listening to the audio' : '음성을 들으며 발음을 연습하세요'}</li>
+                    <li>• {locale === 'en' ? 'Try using this sentence in different contexts' : '이 문장을 다양한 상황에서 사용해보세요'}</li>
+                    <li>• {locale === 'en' ? 'Review the key expressions regularly' : '주요 표현들을 정기적으로 복습하세요'}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowExplanationModal(false)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                >
+                  {locale === 'en' ? 'Close' : '닫기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
