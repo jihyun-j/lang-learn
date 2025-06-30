@@ -55,8 +55,8 @@ export function Learn() {
         setHasGrammarErrors(false); // Consider no errors if grammar check fails
       }
 
-      // 2. Perform AI translation and keyword extraction
-      const result = await translateSentence(sentence, selectedLanguage, 'English');
+      // 2. Perform AI translation and keyword extraction - Always translate to Korean
+      const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
       setTranslation(result.translation);
       setKeywords(result.keywords || []);
       setExplanation(result.explanation || '');
@@ -601,7 +601,7 @@ export function Learn() {
                     
                     <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
                       <p className="text-sm text-gray-600 mb-1">
-                        {locale === 'en' ? 'English' : '영어'} {t.learn.translation}
+                        {locale === 'en' ? 'Korean' : '한국어'} {t.learn.translation}
                       </p>
                       <p className="text-lg font-medium text-gray-900">{translation}</p>
                     </div>
