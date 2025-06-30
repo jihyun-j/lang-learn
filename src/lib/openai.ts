@@ -117,6 +117,7 @@ Guidelines for keywords:
 - Include cultural expressions or references
 - Only include if they are actually present in the sentence
 - Provide the original form, not translated
+- Focus on expressions that language learners should know
 
 Example response:
 {
