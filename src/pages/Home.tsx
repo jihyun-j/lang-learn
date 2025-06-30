@@ -195,19 +195,6 @@ export function Home() {
         </p>
       </div>
 
-      {/* Current Language Display */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6">
-        <div className="flex items-center justify-center">
-          <Globe className="w-6 h-6 text-blue-600 mr-3" />
-          <h2 className="text-2xl font-bold text-gray-900">
-            {t.home.currentLanguage} <span className="text-blue-600">{selectedLanguage}</span>
-          </h2>
-        </div>
-        <p className="text-center text-gray-600 mt-2">
-          {t.home.changeLanguageHint}
-        </p>
-      </div>
-
       {/* Today's Activity */}
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="text-center mb-8">
