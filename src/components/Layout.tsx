@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, List, User, LogOut, ChevronDown } from 'lucide-react';
+import { Home, BookOpen, List, User, LogOut, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
@@ -64,42 +64,42 @@ export function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-blue-900 via-primary-blue-800 to-primary-blue-950">
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
-        <div className="flex flex-col h-full">
+      <div className="fixed inset-y-0 left-0 z-50 w-64">
+        <div className="flex flex-col h-full glass-card-light rounded-r-3xl border-r border-white/20">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 bg-blue-600">
-            <BookOpen className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-accent-green-500 to-primary-blue-500 rounded-tr-3xl">
+            <Sparkles className="w-8 h-8 text-white animate-pulse" />
             <span className="ml-2 text-xl font-bold text-white">{t.auth.appTitle}</span>
           </div>
 
           {/* Language Selector */}
           {availableLanguages.length > 1 && (
-            <div className="px-4 py-3 border-b border-gray-200">
+            <div className="px-4 py-3 border-b border-white/10">
               <div className="relative">
                 <button
                   onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-white/90 glass-button rounded-lg transition-all duration-300 hover:scale-105"
                 >
                   <div className="flex items-center">
                     <span>{getCurrentLanguageDisplay()}</span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${
+                  <ChevronDown className={`w-4 h-4 text-white/70 transition-transform ${
                     isLanguageDropdownOpen ? 'rotate-180' : ''
                   }`} />
                 </button>
 
                 {isLanguageDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  <div className="absolute top-full left-0 right-0 mt-1 glass-card rounded-lg shadow-2xl z-10 border border-white/20">
                     {getLanguageOptions().map((option) => (
                       <button
                         key={option.value}
                         onClick={() => handleLanguageSelect(option.value)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors flex items-center ${
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 first:rounded-t-lg last:rounded-b-lg transition-all duration-200 flex items-center ${
                           selectedLanguage === option.value
-                            ? 'bg-blue-50 text-blue-700 font-medium'
-                            : 'text-gray-700'
+                            ? 'bg-accent-green-500/20 text-accent-green-300 font-medium'
+                            : 'text-white/80 hover:text-white'
                         }`}
                       >
                         <span className="mr-2 text-base">{option.flag}</span>
@@ -114,9 +114,9 @@ export function Layout({ children }: LayoutProps) {
 
           {/* Single Language Display */}
           {availableLanguages.length === 1 && (
-            <div className="px-4 py-3 border-b border-gray-200">
-              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 rounded-lg">
-                <span className="text-blue-700">{getCurrentLanguageDisplay()}</span>
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-accent-green-300 bg-accent-green-500/20 rounded-lg border border-accent-green-400/30">
+                <span>{getCurrentLanguageDisplay()}</span>
               </div>
             </div>
           )}
@@ -131,13 +131,15 @@ export function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-300 group ${
                     isActive
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-accent-green-500/30 to-primary-blue-500/30 text-white border border-accent-green-400/30 shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
                   }`}
                 >
-                  <Icon className="w-5 h-5 mr-3" />
+                  <Icon className={`w-5 h-5 mr-3 transition-transform group-hover:scale-110 ${
+                    isActive ? 'text-accent-green-300' : ''
+                  }`} />
                   {item.name}
                 </Link>
               );
@@ -145,19 +147,19 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           {/* User Info */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center">
-              <div className="flex items-center justify-center w-8 h-8 bg-gray-300 rounded-full">
-                <User className="w-4 h-4 text-gray-600" />
+          <div className="p-4 border-t border-white/10">
+            <div className="flex items-center glass-card-light rounded-xl p-3">
+              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-accent-green-400 to-primary-blue-400 rounded-full">
+                <User className="w-4 h-4 text-white" />
               </div>
               <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-white/90 truncate">
                   {user?.email}
                 </p>
               </div>
               <button
                 onClick={handleSignOut}
-                className="p-1 text-gray-400 hover:text-gray-600"
+                className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200 hover:scale-110"
                 title={t.nav.logout}
               >
                 <LogOut className="w-4 h-4" />

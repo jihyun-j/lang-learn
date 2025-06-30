@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, RotateCcw, Globe, Check, Brain, Zap } from 'lucide-react';
+import { BookOpen, RotateCcw, Globe, Check, Brain, Zap, Sparkles, TrendingUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
@@ -151,13 +151,13 @@ export function Home() {
   const getActivityIcon = (sentences: number, reviews: number) => {
     if (sentences > 0 && reviews > 0) {
       // Both learning and review
-      return <Zap className="w-3 h-3 text-purple-600" />;
+      return <Zap className="w-3 h-3 text-accent-green-400" />;
     } else if (sentences > 0) {
       // Only learning
-      return <BookOpen className="w-3 h-3 text-blue-600" />;
+      return <BookOpen className="w-3 h-3 text-primary-blue-400" />;
     } else if (reviews > 0) {
       // Only review
-      return <Brain className="w-3 h-3 text-green-600" />;
+      return <Brain className="w-3 h-3 text-accent-green-400" />;
     }
     return null;
   };
@@ -168,79 +168,85 @@ export function Home() {
 
     if (today) {
       return hasActivity 
-        ? 'bg-blue-500 text-white ring-4 ring-blue-200 shadow-lg scale-110' 
-        : 'bg-blue-500 text-white ring-4 ring-blue-200 shadow-lg scale-110';
+        ? 'bg-gradient-to-r from-accent-green-500 to-primary-blue-500 text-white ring-4 ring-accent-green-400/30 shadow-2xl scale-110 animate-glow' 
+        : 'bg-gradient-to-r from-accent-green-500 to-primary-blue-500 text-white ring-4 ring-accent-green-400/30 shadow-2xl scale-110';
     } else if (hasActivity) {
       if (sentences > 0 && reviews > 0) {
-        return 'bg-purple-500 text-white shadow-md';
+        return 'bg-gradient-to-r from-accent-green-400 to-primary-blue-400 text-white shadow-xl';
       } else if (sentences > 0) {
-        return 'bg-blue-500 text-white shadow-md';
+        return 'bg-primary-blue-500 text-white shadow-xl';
       } else {
-        return 'bg-green-500 text-white shadow-md';
+        return 'bg-accent-green-500 text-white shadow-xl';
       }
     } else {
-      return 'bg-gray-200 text-gray-600';
+      return 'bg-white/10 text-white/60 backdrop-blur-sm';
     }
   };
 
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          {t.home.welcome}
-        </h1>
-        <p className="text-xl text-gray-600">
-          {t.home.subtitle}
-        </p>
+      <div className="text-center relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-accent-green-400/10 to-primary-blue-400/10 rounded-3xl blur-3xl"></div>
+        <div className="relative glass-card rounded-3xl p-8 border border-white/20">
+          <div className="flex items-center justify-center mb-4">
+            <Sparkles className="w-12 h-12 text-accent-green-400 animate-pulse" />
+          </div>
+          <h1 className="text-4xl font-bold neon-text mb-4">
+            {t.home.welcome}
+          </h1>
+          <p className="text-xl text-white/80">
+            {t.home.subtitle}
+          </p>
+        </div>
       </div>
 
       {/* Current Language Display */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6">
+      <div className="glass-card rounded-2xl p-6 border border-white/20">
         <div className="flex items-center justify-center">
-          <Globe className="w-6 h-6 text-blue-600 mr-3" />
-          <h2 className="text-2xl font-bold text-gray-900">
-            {t.home.currentLanguage} <span className="text-blue-600">{selectedLanguage}</span>
+          <Globe className="w-6 h-6 text-accent-green-400 mr-3" />
+          <h2 className="text-2xl font-bold text-white">
+            {t.home.currentLanguage} <span className="neon-text">{selectedLanguage}</span>
           </h2>
         </div>
-        <p className="text-center text-gray-600 mt-2">
+        <p className="text-center text-white/70 mt-2">
           {t.home.changeLanguageHint}
         </p>
       </div>
 
       {/* Today's Activity */}
-      <div className="bg-white rounded-xl shadow-lg p-8">
+      <div className="glass-card rounded-2xl shadow-2xl p-8 border border-white/20">
         <div className="text-center mb-8">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+          <h3 className="text-2xl font-bold text-white mb-2">
             {selectedLanguage} {t.home.todayActivity}
           </h3>
-          <p className="text-gray-600">{t.home.todayActivitySubtitle}</p>
+          <p className="text-white/70">{t.home.todayActivitySubtitle}</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Today's New Sentences */}
-          <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <div className="glass-card-light rounded-xl p-6 border border-primary-blue-400/30 hover:border-primary-blue-400/50 transition-all duration-300 hover:scale-105">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-primary-blue-500 to-primary-blue-400 rounded-full flex items-center justify-center shadow-lg">
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-lg font-semibold text-blue-900">{t.home.newSentences}</h4>
-                  <p className="text-sm text-blue-700">{t.home.newSentencesDesc}</p>
+                  <h4 className="text-lg font-semibold text-white">{t.home.newSentences}</h4>
+                  <p className="text-sm text-white/70">{t.home.newSentencesDesc}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-blue-600">
+                <p className="text-3xl font-bold text-primary-blue-300">
                   {loading ? '...' : todaySentences}
                 </p>
-                <p className="text-sm text-blue-700">{locale === 'en' ? 'sentences' : '개'}</p>
+                <p className="text-sm text-white/70">{locale === 'en' ? 'sentences' : '개'}</p>
               </div>
             </div>
             <div className="mt-4">
               <Link
                 to="/learn"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-primary-blue-500 to-primary-blue-400 text-white rounded-lg hover:from-primary-blue-600 hover:to-primary-blue-500 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <BookOpen className="w-4 h-4 mr-2" />
                 {t.home.goToLearn}
@@ -249,28 +255,28 @@ export function Home() {
           </div>
 
           {/* Today's Reviews */}
-          <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+          <div className="glass-card-light rounded-xl p-6 border border-accent-green-400/30 hover:border-accent-green-400/50 transition-all duration-300 hover:scale-105">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-accent-green-500 to-accent-green-400 rounded-full flex items-center justify-center shadow-lg">
                   <RotateCcw className="w-6 h-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-lg font-semibold text-green-900">{t.home.review}</h4>
-                  <p className="text-sm text-green-700">{t.home.reviewDesc}</p>
+                  <h4 className="text-lg font-semibold text-white">{t.home.review}</h4>
+                  <p className="text-sm text-white/70">{t.home.reviewDesc}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold text-green-600">
+                <p className="text-3xl font-bold text-accent-green-300">
                   {loading ? '...' : todayReviews}
                 </p>
-                <p className="text-sm text-green-700">{locale === 'en' ? 'sentences' : '개'}</p>
+                <p className="text-sm text-white/70">{locale === 'en' ? 'sentences' : '개'}</p>
               </div>
             </div>
             <div className="mt-4">
               <Link
                 to="/review"
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-accent-green-500 to-accent-green-400 text-white rounded-lg hover:from-accent-green-600 hover:to-accent-green-500 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 {t.home.goToReview}
@@ -280,12 +286,15 @@ export function Home() {
         </div>
 
         {/* Weekly Progress */}
-        <div className="mt-8 bg-gray-50 rounded-xl p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-6 text-center">{t.home.weeklyProgress}</h4>
+        <div className="mt-8 glass-card-light rounded-xl p-6 border border-white/10">
+          <h4 className="text-lg font-semibold text-white mb-6 text-center flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 mr-2 text-accent-green-400" />
+            {t.home.weeklyProgress}
+          </h4>
           
           {loading ? (
             <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-green-400"></div>
             </div>
           ) : (
             <div className="grid grid-cols-7 gap-3">
@@ -296,7 +305,7 @@ export function Home() {
                 
                 return (
                   <div key={index} className="text-center">
-                    <p className="text-xs text-gray-600 mb-2 font-medium">
+                    <p className="text-xs text-white/70 mb-2 font-medium">
                       {getDayLabel(day.date)}
                     </p>
                     <div className="relative">
@@ -308,14 +317,14 @@ export function Home() {
                       
                       {/* Activity indicator */}
                       {activityIcon && (
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-gray-100">
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg border border-white/30">
                           {activityIcon}
                         </div>
                       )}
                       
                       {/* Today indicator */}
                       {today && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent-green-400 rounded-full animate-pulse shadow-lg"></div>
                       )}
                     </div>
                     
@@ -323,13 +332,13 @@ export function Home() {
                     {hasActivity && (
                       <div className="mt-2 text-xs space-y-1">
                         {day.sentences > 0 && (
-                          <div className="flex items-center justify-center text-blue-600">
+                          <div className="flex items-center justify-center text-primary-blue-300">
                             <BookOpen className="w-3 h-3 mr-1" />
                             <span>{day.sentences}</span>
                           </div>
                         )}
                         {day.reviews > 0 && (
-                          <div className="flex items-center justify-center text-green-600">
+                          <div className="flex items-center justify-center text-accent-green-300">
                             <Brain className="w-3 h-3 mr-1" />
                             <span>{day.reviews}</span>
                           </div>
@@ -344,39 +353,39 @@ export function Home() {
           
           {/* Legend */}
           <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs">
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
-              <BookOpen className="w-3 h-3 mr-1 text-blue-600" />
-              <span className="text-gray-600">{t.home.newSentences}</span>
+            <div className="flex items-center glass-card-light px-3 py-1 rounded-full">
+              <div className="w-4 h-4 bg-primary-blue-500 rounded-full mr-2"></div>
+              <BookOpen className="w-3 h-3 mr-1 text-primary-blue-400" />
+              <span className="text-white/80">{t.home.newSentences}</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
-              <Brain className="w-3 h-3 mr-1 text-green-600" />
-              <span className="text-gray-600">{t.home.review}</span>
+            <div className="flex items-center glass-card-light px-3 py-1 rounded-full">
+              <div className="w-4 h-4 bg-accent-green-500 rounded-full mr-2"></div>
+              <Brain className="w-3 h-3 mr-1 text-accent-green-400" />
+              <span className="text-white/80">{t.home.review}</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-purple-500 rounded-full mr-2"></div>
-              <Zap className="w-3 h-3 mr-1 text-purple-600" />
-              <span className="text-gray-600">{locale === 'en' ? 'Both' : '둘 다'}</span>
+            <div className="flex items-center glass-card-light px-3 py-1 rounded-full">
+              <div className="w-4 h-4 bg-gradient-to-r from-accent-green-500 to-primary-blue-500 rounded-full mr-2"></div>
+              <Zap className="w-3 h-3 mr-1 text-accent-green-400" />
+              <span className="text-white/80">{locale === 'en' ? 'Both' : '둘 다'}</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></div>
-              <span className="text-gray-600">{locale === 'en' ? 'Today' : '오늘'}</span>
+            <div className="flex items-center glass-card-light px-3 py-1 rounded-full">
+              <div className="w-3 h-3 bg-accent-green-400 rounded-full mr-2 animate-pulse"></div>
+              <span className="text-white/80">{locale === 'en' ? 'Today' : '오늘'}</span>
             </div>
           </div>
           
           {/* Weekly summary */}
           <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium text-blue-600">
+            <p className="text-sm text-white/70">
+              <span className="font-medium text-primary-blue-300">
                 {weeklyActivity.reduce((acc, day) => acc + day.sentences, 0)}{locale === 'en' ? ' sentences learned' : '개 문장 학습'}
               </span>
               {' • '}
-              <span className="font-medium text-green-600">
+              <span className="font-medium text-accent-green-300">
                 {weeklyActivity.reduce((acc, day) => acc + day.reviews, 0)}{locale === 'en' ? ' reviews completed' : '회 복습 완료'}
               </span>
               {' • '}
-              <span className="font-medium text-purple-600">
+              <span className="font-medium text-white">
                 {weeklyActivity.filter(day => day.sentences > 0 || day.reviews > 0).length}{locale === 'en' ? ' active days' : '일 활동'} 🔥
               </span>
             </p>
