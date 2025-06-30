@@ -4,6 +4,7 @@ export interface TranslationResponse {
   translation: string;
   explanation?: string;
   useful_expressions?: string[];
+  keywords?: string[]; // 새로 추가된 키워드 필드
 }
 
 export interface SpeechRecognitionResult {
@@ -95,24 +96,34 @@ export async function translateSentence(
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo', // GPT-3.5 Turbo로 다운그레이드
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
-            content: `You are a professional translator specializing in natural, fluent translations that sound like they were originally written in the target language.
+            content: `You are a professional translator and language expert specializing in identifying idioms, slang, and common phrases.
 
-Your task is to translate a given sentence from ${sourceLang} to ${targetLang}.
+Your task is to translate a sentence from ${sourceLang} to ${targetLang} and extract important linguistic elements.
 
-Instructions:
-- Prioritize natural, fluent expression over literal translation.
-- Avoid awkward word-for-word conversions.
-- Do not include quotation marks or any JSON formatting.
-- Output ONLY the translated sentence — as if a native speaker wrote it.
+Please respond in JSON format with these fields:
+- translation: Natural, fluent translation as a native speaker would say it
+- keywords: Array of idioms, slang, common phrases, or culturally significant expressions found in the sentence (maximum 5)
+- explanation: Brief explanation if the sentence contains complex idioms or cultural references
 
-If absolutely necessary (e.g. for ambiguity), you may optionally return:
-Translation: [your translation]  
-Explanation: [why you translated it that way, if helpful]  
-Keywords: [important words or idioms you interpreted]`
+Guidelines for keywords:
+- Include idioms (e.g., "break a leg", "piece of cake")
+- Include slang expressions (e.g., "cool", "awesome", "no way")
+- Include common phrases (e.g., "how's it going", "what's up")
+- Include phrasal verbs (e.g., "give up", "look forward to")
+- Include cultural expressions or references
+- Only include if they are actually present in the sentence
+- Provide the original form, not translated
+
+Example response:
+{
+  "translation": "행운을 빌어",
+  "keywords": ["break a leg"],
+  "explanation": "This is an idiom meaning 'good luck' commonly used in theater"
+}`
           },
           {
             role: 'user',
@@ -134,7 +145,8 @@ Keywords: [important words or idioms you interpreted]`
         return {
           translation: getFallbackTranslation(sentence),
           explanation: "번역 서비스의 사용량이 초과되어 제한된 번역을 제공합니다. 더 정확한 번역을 위해서는 API 크레딧을 충전해주세요.",
-          useful_expressions: []
+          useful_expressions: [],
+          keywords: []
         };
       }
       
@@ -150,7 +162,8 @@ Keywords: [important words or idioms you interpreted]`
       return {
         translation: parsed.translation || extractCleanTranslation(content),
         explanation: parsed.explanation,
-        useful_expressions: parsed.useful_expressions || []
+        useful_expressions: parsed.useful_expressions || [],
+        keywords: parsed.keywords || []
       };
     } catch (parseError) {
       // If JSON parsing fails, extract clean translation
@@ -176,7 +189,8 @@ Keywords: [important words or idioms you interpreted]`
       return {
         translation: translation || cleanTranslation,
         explanation: explanation || undefined,
-        useful_expressions: keywords.length > 0 ? keywords : []
+        useful_expressions: keywords.length > 0 ? keywords : [],
+        keywords: keywords
       };
     }
   } catch (error) {
@@ -189,7 +203,8 @@ Keywords: [important words or idioms you interpreted]`
       return {
         translation: getFallbackTranslation(sentence),
         explanation: "번역 서비스에 일시적인 문제가 있어 기본 번역을 제공합니다. 나중에 다시 시도해주세요.",
-        useful_expressions: []
+        useful_expressions: [],
+        keywords: []
       };
     }
     
@@ -394,20 +409,15 @@ export async function compareSentences(
         messages: [
           {
             role: 'system',
-           content: `You are a native-level professional translator with deep knowledge of idioms, slang, and cultural expressions.
+            content: `You are a language learning assistant. Compare the original sentence with what the user said and determine if they match semantically. 
 
-Translate the following sentence from ${sourceLang} to ${targetLang}.
+Return response in JSON format with these fields:
+- transcription: the user's spoken text (cleaned up)
+- isCorrect: boolean - true if the meaning is substantially the same (allow for minor pronunciation differences)
+- similarity: number from 0-100 representing how similar the sentences are
+- feedback: encouraging feedback in Korean
 
-Instructions:
-- Focus on delivering a natural, fluent translation as a native speaker would say it.
-- Properly interpret and translate idioms, slang, and expressions, not just literally.
-- Maintain the tone (casual, formal, humorous, etc.) and emotional nuance.
-- Avoid quotation marks, explanations, or any extra formatting — just return the translated sentence.
-
-If clarification is necessary, use this format:
-Translation: [your translation]  
-Explanation: [brief, simple explanation of slang or idiom if needed]  
-Keywords: [key idioms, slang, cultural expressions used]`
+Be lenient with minor pronunciation errors, contractions, and small grammatical differences. Focus on whether the core meaning is preserved.`
           },
           {
             role: 'user',

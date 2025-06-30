@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, FileText, RotateCcw } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, FileText, RotateCcw, Tag } from 'lucide-react';
 import { translateSentence, checkGrammarAndSpelling, GrammarCheckResult } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -10,6 +10,8 @@ import { getTranslation } from '../utils/translations';
 export function Learn() {
   const [sentence, setSentence] = useState('');
   const [translation, setTranslation] = useState('');
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [explanation, setExplanation] = useState('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -73,6 +75,8 @@ export function Learn() {
       // AI 번역 수행
       const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
       setTranslation(result.translation);
+      setKeywords(result.keywords || []);
+      setExplanation(result.explanation || '');
 
       // 기존 문장이 있는지 확인
       const { data: existingSentence, error: checkError } = await supabase
@@ -92,6 +96,7 @@ export function Learn() {
           .from('sentences')
           .update({
             korean_translation: result.translation,
+            keywords: result.keywords || [],
             difficulty: difficulty,
             target_language: selectedLanguage,
             updated_at: new Date().toISOString(),
@@ -107,7 +112,7 @@ export function Learn() {
             user_id: user.id,
             english_text: sentence,
             korean_translation: result.translation,
-            keywords: [],
+            keywords: result.keywords || [],
             difficulty: difficulty,
             target_language: selectedLanguage,
           });
@@ -128,6 +133,8 @@ export function Learn() {
   const handleNextSentence = () => {
     setSentence('');
     setTranslation('');
+    setKeywords([]);
+    setExplanation('');
     setDifficulty('medium');
     setSaved(false);
     setGrammarCheck(null);
@@ -574,6 +581,47 @@ export function Learn() {
                       <p className="text-lg font-medium text-gray-900">{translation}</p>
                     </div>
                   </div>
+
+                  {/* Keywords Display */}
+                  {keywords.length > 0 && (
+                    <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="flex items-center mb-3">
+                        <Tag className="w-5 h-5 text-purple-600 mr-2" />
+                        <h4 className="font-semibold text-purple-900">
+                          {locale === 'en' ? 'Key Expressions Found' : '발견된 주요 표현'}
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {keywords.map((keyword, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-300"
+                          >
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-purple-600 mt-2">
+                        {locale === 'en' 
+                          ? 'These are idioms, slang, or common phrases detected in your sentence'
+                          : '문장에서 발견된 관용구, 속어, 또는 일반적인 표현들입니다'
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Explanation Display */}
+                  {explanation && (
+                    <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <div className="flex items-center mb-2">
+                        <Lightbulb className="w-5 h-5 text-yellow-600 mr-2" />
+                        <h4 className="font-semibold text-yellow-900">
+                          {locale === 'en' ? 'Cultural Context' : '문화적 맥락'}
+                        </h4>
+                      </div>
+                      <p className="text-sm text-yellow-800">{explanation}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Next Sentence Button */}
