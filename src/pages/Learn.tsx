@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, FileText } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, FileText, RotateCcw } from 'lucide-react';
 import { translateSentence, checkGrammarAndSpelling, GrammarCheckResult } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -116,20 +116,29 @@ export function Learn() {
       }
 
       setSaved(true);
-      setTimeout(() => {
-        setSentence('');
-        setTranslation('');
-        setDifficulty('medium');
-        setSaved(false);
-        setGrammarCheck(null);
-        setShowGrammarCheck(false);
-      }, 2000);
     } catch (error) {
       console.error('Translation and save failed:', error);
       alert(t.errors.translationFailed);
     } finally {
       setLoading(false);
     }
+  };
+
+  // 다음 문장 입력 함수
+  const handleNextSentence = () => {
+    setSentence('');
+    setTranslation('');
+    setDifficulty('medium');
+    setSaved(false);
+    setGrammarCheck(null);
+    setShowGrammarCheck(false);
+    setGrammarCheckError(null);
+    setAudioError(null);
+    setIsPlayingInput(false);
+    setIsPlayingResult(false);
+    
+    // 음성 재생 중지
+    window.speechSynthesis.cancel();
   };
 
   // 언어별 음성 코드 매핑
@@ -520,7 +529,7 @@ export function Learn() {
             <div className="flex justify-center">
               <button
                 onClick={handleTranslateAndSave}
-                disabled={loading || !sentence.trim()}
+                disabled={loading || !sentence.trim() || saved}
                 className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? (
@@ -566,6 +575,19 @@ export function Learn() {
                     </div>
                   </div>
                 </div>
+
+                {/* Next Sentence Button */}
+                {saved && (
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={handleNextSentence}
+                      className="flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all transform hover:scale-105"
+                    >
+                      <RotateCcw className="w-5 h-5 mr-2" />
+                      다음 문장 입력
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
