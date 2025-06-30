@@ -64,31 +64,23 @@ export function Learn() {
     setSentence(correctedSentence);
   };
 
-  const handleTranslate = async () => {
-    if (!sentence.trim()) return;
+  // AI 번역 없이 바로 저장하는 함수
+  const handleDirectSave = async () => {
+    if (!sentence.trim() || !user) return;
     
     setLoading(true);
     try {
-      const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
-      setTranslation(result.translation);
-    } catch (error) {
-      console.error('Translation failed:', error);
-      alert(t.errors.translationFailed);
-    } finally {
-      setLoading(false);
-    }
-  };
+      // 사용자가 입력한 문장을 그대로 번역으로 사용 (또는 기본 번역 메시지)
+      const defaultTranslation = locale === 'en' 
+        ? 'Translation will be added later' 
+        : '번역은 나중에 추가됩니다';
 
-  const handleSave = async () => {
-    if (!translation || !user) return;
-
-    try {
       const { error } = await supabase
         .from('sentences')
         .insert({
           user_id: user.id,
           english_text: sentence,
-          korean_translation: translation,
+          korean_translation: defaultTranslation,
           keywords: [],
           difficulty: difficulty,
           target_language: selectedLanguage,
@@ -108,6 +100,8 @@ export function Learn() {
     } catch (error) {
       console.error('Save failed:', error);
       alert(t.errors.saveFailed);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -495,77 +489,23 @@ export function Learn() {
               </div>
             </div>
 
-            {/* Translate Button */}
+            {/* Direct Save Button */}
             <div className="flex justify-center">
               <button
-                onClick={handleTranslate}
+                onClick={handleDirectSave}
                 disabled={loading || !sentence.trim()}
-                className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                ) : saved ? (
+                  <Check className="w-5 h-5 mr-2" />
                 ) : (
-                  <Sparkles className="w-5 h-5 mr-2" />
+                  <Plus className="w-5 h-5 mr-2" />
                 )}
-                {loading ? t.learn.translating : t.learn.translate}
+                {loading ? t.learn.translating : saved ? t.learn.saved : t.learn.saveSentence}
               </button>
             </div>
-
-            {/* Translation Result */}
-            {translation && (
-              <div className="space-y-6 pt-6 border-t border-gray-200">
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">{t.learn.translationResult}</h3>
-                  <div className="space-y-3">
-                    <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-600 mb-1">{selectedLanguage} {t.learn.original}</p>
-                          <p className="text-lg font-medium text-gray-900">{sentence}</p>
-                        </div>
-                        <button
-                          onClick={() => playAudio(sentence, false)}
-                          disabled={isPlayingResult}
-                          className={`ml-3 p-2 transition-all rounded-lg ${
-                            isPlayingResult
-                              ? 'text-white bg-blue-600 animate-pulse shadow-lg'
-                              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                          }`}
-                          title={`${selectedLanguage} ${t.learn.playPronunciation} ${isPlayingResult ? `(${t.learn.playing})` : ''}`}
-                        >
-                          <Volume2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
-                      <p className="text-sm text-gray-600 mb-1">{locale === 'en' ? 'English' : '한국어'} {t.learn.translation}</p>
-                      <p className="text-lg font-medium text-gray-900">{translation}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Save Button */}
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={handleSave}
-                    disabled={saved}
-                    className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {saved ? (
-                      <>
-                        <Check className="w-5 h-5 mr-2" />
-                        {t.learn.saved}
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-5 h-5 mr-2" />
-                        {t.learn.saveSentence}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
