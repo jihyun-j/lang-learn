@@ -167,9 +167,7 @@ export function Home() {
     const hasActivity = sentences > 0 || reviews > 0;
     const bothCompleted = sentences > 0 && reviews > 0;
 
-    if (today) {
-      return 'bg-blue-500 text-white ring-4 ring-blue-200 shadow-lg scale-110';
-    } else if (bothCompleted) {
+    if (bothCompleted) {
       return 'bg-white text-gray-900 shadow-md border-2 border-green-500';
     } else if (hasActivity) {
       return 'bg-gray-200 text-gray-900 shadow-md';
@@ -182,9 +180,7 @@ export function Home() {
     const today = isToday(date);
     const bothCompleted = sentences > 0 && reviews > 0;
 
-    if (today) {
-      return getDayNumber(date);
-    } else if (bothCompleted) {
+    if (bothCompleted) {
       return <Check className="w-6 h-6 text-green-500" />;
     } else {
       return getDayNumber(date);
@@ -196,7 +192,7 @@ export function Home() {
     const hasActivity = sentences > 0 || reviews > 0;
     const bothCompleted = sentences > 0 && reviews > 0;
 
-    if (today || bothCompleted || !hasActivity) {
+    if (bothCompleted || !hasActivity) {
       return null;
     }
 
@@ -345,12 +341,12 @@ export function Home() {
           {/* Legend */}
           <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs">
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
+              <div className="w-4 h-4 bg-gray-200 rounded-full mr-2"></div>
               <BookOpen className="w-3 h-3 mr-1 text-blue-600" />
               <span className="text-gray-600">{t.home.newSentences}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
+              <div className="w-4 h-4 bg-gray-200 rounded-full mr-2"></div>
               <Brain className="w-3 h-3 mr-1 text-green-600" />
               <span className="text-gray-600">{t.home.review}</span>
             </div>
