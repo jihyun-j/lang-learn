@@ -361,7 +361,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>Grammar errors will be corrected before saving</p>
+            <p>{t.learn.tipGrammar}</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -448,7 +448,10 @@ export function Learn() {
                       <h4 className={`font-semibold ${
                         grammarCheck.isCorrect ? 'text-green-900' : 'text-red-900'
                       }`}>
-                        {grammarCheck.isCorrect ? 'Grammar Check Passed' : 'Grammar Errors Found - Correction Required'}
+                        {grammarCheck.isCorrect 
+                          ? (locale === 'en' ? 'Grammar Check Passed' : '문법 검사 통과') 
+                          : (locale === 'en' ? 'Grammar Errors Found - Correction Required' : '문법 오류 발견 - 수정 필요')
+                        }
                       </h4>
                     </div>
                     <span className={`text-sm font-medium ${
@@ -461,7 +464,10 @@ export function Learn() {
                   {!grammarCheck.isCorrect && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-sm text-yellow-800 font-medium">
-                        ⚠️ Grammar errors detected. Cannot save to database. Please correct the sentence using the suggestions below.
+                        ⚠️ {locale === 'en' 
+                          ? 'Grammar errors detected. Cannot save to database. Please correct the sentence using the suggestions below.'
+                          : '문법 오류가 감지되었습니다. 데이터베이스에 저장할 수 없습니다. 아래 제안을 사용하여 문장을 수정해주세요.'
+                        }
                       </p>
                     </div>
                   )}
@@ -555,7 +561,10 @@ export function Learn() {
                 ) : (
                   <Sparkles className="w-6 h-6 mr-3" />
                 )}
-                {loading ? 'AI Analyzing...' : 'AI Analyze'}
+                {loading 
+                  ? (locale === 'en' ? 'AI Analyzing...' : 'AI 분석 중...')
+                  : (locale === 'en' ? 'AI Analyze' : 'AI 분석하기')
+                }
               </button>
             </div>
 
@@ -563,7 +572,9 @@ export function Learn() {
             {translation && (
               <div className="space-y-6 pt-6 border-t border-gray-200">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 AI Analysis Results</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    🎯 {locale === 'en' ? 'AI Analysis Results' : 'AI 분석 결과'}
+                  </h3>
                   
                   {/* Translation Result */}
                   <div className="space-y-4">
@@ -589,7 +600,9 @@ export function Learn() {
                     </div>
                     
                     <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
-                      <p className="text-sm text-gray-600 mb-1">English {t.learn.translation}</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {locale === 'en' ? 'English' : '영어'} {t.learn.translation}
+                      </p>
                       <p className="text-lg font-medium text-gray-900">{translation}</p>
                     </div>
                   </div>
@@ -600,7 +613,7 @@ export function Learn() {
                       <div className="flex items-center mb-3">
                         <Tag className="w-5 h-5 text-purple-600 mr-2" />
                         <h4 className="font-semibold text-purple-900">
-                          Key Expressions Found
+                          {locale === 'en' ? 'Key Expressions Found' : '핵심 표현 발견'}
                         </h4>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -615,7 +628,10 @@ export function Learn() {
                         ))}
                       </div>
                       <p className="text-xs text-purple-600 mt-2">
-                        These are idioms, slang, or common phrases detected in your sentence
+                        {locale === 'en' 
+                          ? 'These are idioms, slang, or common phrases detected in your sentence'
+                          : '문장에서 감지된 관용구, 속어 또는 일반적인 표현들입니다'
+                        }
                       </p>
                     </div>
                   )}
@@ -626,7 +642,7 @@ export function Learn() {
                       <div className="flex items-center mb-2">
                         <Lightbulb className="w-5 h-5 text-yellow-600 mr-2" />
                         <h4 className="font-semibold text-yellow-900">
-                          Cultural Context
+                          {locale === 'en' ? 'Cultural Context' : '문화적 맥락'}
                         </h4>
                       </div>
                       <p className="text-sm text-yellow-800">{explanation}</p>
@@ -639,7 +655,10 @@ export function Learn() {
                       <div className="flex items-center">
                         <XCircle className="w-5 h-5 text-red-600 mr-2" />
                         <p className="text-sm text-red-800 font-medium">
-                          Cannot save due to grammar errors. Please correct the sentence using the suggestions above.
+                          {locale === 'en' 
+                            ? 'Cannot save due to grammar errors. Please correct the sentence using the suggestions above.'
+                            : '문법 오류로 인해 저장할 수 없습니다. 위의 제안을 사용하여 문장을 수정해주세요.'
+                          }
                         </p>
                       </div>
                     </div>
@@ -651,7 +670,10 @@ export function Learn() {
                         <div className="flex items-center">
                           <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                           <p className="text-sm text-green-800 font-medium">
-                            Grammar check passed! Ready to save to database.
+                            {locale === 'en' 
+                              ? 'Grammar check passed! Ready to save to database.'
+                              : '문법 검사 통과! 데이터베이스에 저장할 준비가 되었습니다.'
+                            }
                           </p>
                         </div>
                         <button
@@ -664,7 +686,10 @@ export function Learn() {
                           ) : (
                             <Plus className="w-4 h-4 mr-2" />
                           )}
-                          {loading ? 'Saving...' : 'Save'}
+                          {loading 
+                            ? (locale === 'en' ? 'Saving...' : '저장 중...')
+                            : (locale === 'en' ? 'Save' : '저장')
+                          }
                         </button>
                       </div>
                     </div>
@@ -676,7 +701,7 @@ export function Learn() {
                         <div className="flex items-center">
                           <Check className="w-5 h-5 text-blue-600 mr-2" />
                           <p className="text-sm text-blue-800 font-medium">
-                            Successfully saved! 🎉
+                            {locale === 'en' ? 'Successfully saved! 🎉' : '성공적으로 저장되었습니다! 🎉'}
                           </p>
                         </div>
                         <button
@@ -684,7 +709,7 @@ export function Learn() {
                           className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                         >
                           <RotateCcw className="w-4 h-4 mr-2" />
-                          Next Sentence
+                          {locale === 'en' ? 'Next Sentence' : '다음 문장'}
                         </button>
                       </div>
                     </div>
