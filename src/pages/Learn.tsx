@@ -64,23 +64,23 @@ export function Learn() {
     setSentence(correctedSentence);
   };
 
-  // AI 번역 없이 바로 저장하는 함수
-  const handleDirectSave = async () => {
+  // AI 번역과 저장을 동시에 처리하는 함수
+  const handleTranslateAndSave = async () => {
     if (!sentence.trim() || !user) return;
     
     setLoading(true);
     try {
-      // 사용자가 입력한 문장을 그대로 번역으로 사용 (또는 기본 번역 메시지)
-      const defaultTranslation = locale === 'en' 
-        ? 'Translation will be added later' 
-        : '번역은 나중에 추가됩니다';
+      // AI 번역 수행
+      const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
+      setTranslation(result.translation);
 
+      // 번역 결과와 함께 데이터베이스에 저장
       const { error } = await supabase
         .from('sentences')
         .insert({
           user_id: user.id,
           english_text: sentence,
-          korean_translation: defaultTranslation,
+          korean_translation: result.translation,
           keywords: [],
           difficulty: difficulty,
           target_language: selectedLanguage,
@@ -98,8 +98,8 @@ export function Learn() {
         setShowGrammarCheck(false);
       }, 2000);
     } catch (error) {
-      console.error('Save failed:', error);
-      alert(t.errors.saveFailed);
+      console.error('Translation and save failed:', error);
+      alert(t.errors.translationFailed);
     } finally {
       setLoading(false);
     }
@@ -489,10 +489,10 @@ export function Learn() {
               </div>
             </div>
 
-            {/* Direct Save Button */}
+            {/* Translate and Save Button */}
             <div className="flex justify-center">
               <button
-                onClick={handleDirectSave}
+                onClick={handleTranslateAndSave}
                 disabled={loading || !sentence.trim()}
                 className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
@@ -506,6 +506,41 @@ export function Learn() {
                 {loading ? t.learn.translating : saved ? t.learn.saved : t.learn.saveSentence}
               </button>
             </div>
+
+            {/* Translation Result Display */}
+            {translation && (
+              <div className="space-y-6 pt-6 border-t border-gray-200">
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">{t.learn.translationResult}</h3>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600 mb-1">{selectedLanguage} {t.learn.original}</p>
+                          <p className="text-lg font-medium text-gray-900">{sentence}</p>
+                        </div>
+                        <button
+                          onClick={() => playAudio(sentence, false)}
+                          disabled={isPlayingResult}
+                          className={`ml-3 p-2 transition-all rounded-lg ${
+                            isPlayingResult
+                              ? 'text-white bg-blue-600 animate-pulse shadow-lg'
+                              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                          title={`${selectedLanguage} ${t.learn.playPronunciation} ${isPlayingResult ? `(${t.learn.playing})` : ''}`}
+                        >
+                          <Volume2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
+                      <p className="text-sm text-gray-600 mb-1">{locale === 'en' ? 'English' : '한국어'} {t.learn.translation}</p>
+                      <p className="text-lg font-medium text-gray-900">{translation}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
