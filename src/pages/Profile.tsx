@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Brain, Plus, Minus } from 'lucide-react';
+import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
@@ -563,7 +563,7 @@ export function Profile() {
       </div>
 
       {/* Additional Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center">
             <div className="p-3 bg-orange-100 rounded-full">
@@ -584,18 +584,6 @@ export function Profile() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">{t.profile.thisWeekActivity}</p>
               <p className="text-2xl font-bold text-gray-900">{stats.weeklyData.reduce((acc, day) => acc + day.sentences + day.reviews, 0)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-pink-100 rounded-full">
-              <Brain className="w-6 h-6 text-pink-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">{t.profile.learningLevel}</p>
-              <p className="text-2xl font-bold text-gray-900">{t.profile.intermediate}</p>
             </div>
           </div>
         </div>
