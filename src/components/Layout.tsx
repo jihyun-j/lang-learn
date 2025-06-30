@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, List, User, LogOut, ChevronDown, Sparkles } from 'lucide-react';
+import { Home, BookOpen, List, User, LogOut, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
@@ -35,75 +35,47 @@ export function Layout({ children }: LayoutProps) {
     setIsLanguageDropdownOpen(false);
   };
 
-  // Language options with flags and English names
-  const getLanguageOptions = () => {
-    const languageMap: { [key: string]: { flag: string; name: string } } = {
-      '영어': { flag: '🇺🇸', name: 'English' },
-      '일본어': { flag: '🇯🇵', name: 'Japanese' },
-      '중국어': { flag: '🇨🇳', name: 'Chinese' },
-      '프랑스어': { flag: '🇫🇷', name: 'French' },
-      '독일어': { flag: '🇩🇪', name: 'German' },
-      '스페인어': { flag: '🇪🇸', name: 'Spanish' },
-      '이탈리아어': { flag: '🇮🇹', name: 'Italian' },
-      '러시아어': { flag: '🇷🇺', name: 'Russian' },
-      '포르투갈어': { flag: '🇧🇷', name: 'Portuguese' },
-      '아랍어': { flag: '🇸🇦', name: 'Arabic' },
-    };
-
-    return availableLanguages.map(lang => ({
-      value: lang,
-      flag: languageMap[lang]?.flag || '🌐',
-      name: languageMap[lang]?.name || lang,
-    }));
-  };
-
-  const getCurrentLanguageDisplay = () => {
-    const options = getLanguageOptions();
-    const current = options.find(opt => opt.value === selectedLanguage);
-    return current ? `${current.flag} ${current.name}` : selectedLanguage;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950">
+    <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64">
-        <div className="flex flex-col h-full glass-card-light rounded-r-3xl border-r border-white/20">
+      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
+        <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-accent-500 to-primary-500 rounded-tr-3xl">
-            <Sparkles className="w-8 h-8 text-white animate-pulse" />
+          <div className="flex items-center justify-center h-16 px-4 bg-blue-600">
+            <BookOpen className="w-8 h-8 text-white" />
             <span className="ml-2 text-xl font-bold text-white">{t.auth.appTitle}</span>
           </div>
 
           {/* Language Selector */}
           {availableLanguages.length > 1 && (
-            <div className="px-4 py-3 border-b border-white/10">
+            <div className="px-4 py-3 border-b border-gray-200">
               <div className="relative">
                 <button
                   onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-white/90 glass-button rounded-lg transition-all duration-300 hover:scale-105"
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 >
                   <div className="flex items-center">
-                    <span>{getCurrentLanguageDisplay()}</span>
+                    <Globe className="w-4 h-4 mr-2 text-gray-500" />
+                    <span>{selectedLanguage}</span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-white/70 transition-transform ${
+                  <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${
                     isLanguageDropdownOpen ? 'rotate-180' : ''
                   }`} />
                 </button>
 
                 {isLanguageDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 glass-card rounded-lg shadow-2xl z-10 border border-white/20">
-                    {getLanguageOptions().map((option) => (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                    {availableLanguages.map((language) => (
                       <button
-                        key={option.value}
-                        onClick={() => handleLanguageSelect(option.value)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 first:rounded-t-lg last:rounded-b-lg transition-all duration-200 flex items-center ${
-                          selectedLanguage === option.value
-                            ? 'bg-accent-500/20 text-accent-300 font-medium'
-                            : 'text-white/80 hover:text-white'
+                        key={language}
+                        onClick={() => handleLanguageSelect(language)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                          selectedLanguage === language
+                            ? 'bg-blue-50 text-blue-700 font-medium'
+                            : 'text-gray-700'
                         }`}
                       >
-                        <span className="mr-2 text-base">{option.flag}</span>
-                        <span>{option.name}</span>
+                        {language}
                       </button>
                     ))}
                   </div>
@@ -114,9 +86,10 @@ export function Layout({ children }: LayoutProps) {
 
           {/* Single Language Display */}
           {availableLanguages.length === 1 && (
-            <div className="px-4 py-3 border-b border-white/10">
-              <div className="flex items-center px-3 py-2 text-sm font-medium text-accent-300 bg-accent-500/20 rounded-lg border border-accent-400/30">
-                <span>{getCurrentLanguageDisplay()}</span>
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 rounded-lg">
+                <Globe className="w-4 h-4 mr-2 text-blue-600" />
+                <span className="text-blue-700">{selectedLanguage}</span>
               </div>
             </div>
           )}
@@ -131,15 +104,13 @@ export function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-300 group ${
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-gradient-to-r from-accent-500/30 to-primary-500/30 text-white border border-accent-400/30 shadow-lg'
-                      : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 mr-3 transition-transform group-hover:scale-110 ${
-                    isActive ? 'text-accent-300' : ''
-                  }`} />
+                  <Icon className="w-5 h-5 mr-3" />
                   {item.name}
                 </Link>
               );
@@ -147,19 +118,19 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           {/* User Info */}
-          <div className="p-4 border-t border-white/10">
-            <div className="flex items-center glass-card-light rounded-xl p-3">
-              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-accent-400 to-primary-400 rounded-full">
-                <User className="w-4 h-4 text-white" />
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex items-center">
+              <div className="flex items-center justify-center w-8 h-8 bg-gray-300 rounded-full">
+                <User className="w-4 h-4 text-gray-600" />
               </div>
               <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-white/90 truncate">
+                <p className="text-sm font-medium text-gray-900 truncate">
                   {user?.email}
                 </p>
               </div>
               <button
                 onClick={handleSignOut}
-                className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200 hover:scale-110"
+                className="p-1 text-gray-400 hover:text-gray-600"
                 title={t.nav.logout}
               >
                 <LogOut className="w-4 h-4" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X, Save, XCircle, RotateCcw, Target } from 'lucide-react';
+import { Calendar, List, Shuffle, Search, Filter, Volume2, Edit3, Trash2, BookOpen, Globe, X, Save, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -16,15 +16,8 @@ interface EditingState {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
-interface SentenceWithStats extends Sentence {
-  review_count: number;
-  incorrect_count: number;
-  last_review_date?: string;
-  average_score?: number;
-}
-
 export function Sentences() {
-  const [sentences, setSentences] = useState<SentenceWithStats[]>([]);
+  const [sentences, setSentences] = useState<Sentence[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDateRange, setShowDateRange] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,33 +90,7 @@ export function Sentences() {
 
       if (error) throw error;
 
-      // Load review statistics for each sentence
-      const sentencesWithStats = await Promise.all(
-        (data || []).map(async (sentence) => {
-          const { data: reviews } = await supabase
-            .from('review_sessions')
-            .select('overall_score, created_at')
-            .eq('sentence_id', sentence.id)
-            .order('created_at', { ascending: false });
-
-          const reviewCount = reviews?.length || 0;
-          const incorrectCount = reviews?.filter(r => r.overall_score < 70).length || 0;
-          const lastReviewDate = reviews?.[0]?.created_at;
-          const averageScore = reviewCount > 0 
-            ? Math.round(reviews.reduce((acc, r) => acc + r.overall_score, 0) / reviewCount)
-            : undefined;
-
-          return {
-            ...sentence,
-            review_count: reviewCount,
-            incorrect_count: incorrectCount,
-            last_review_date: lastReviewDate,
-            average_score: averageScore,
-          };
-        })
-      );
-
-      setSentences(sentencesWithStats);
+      setSentences(data || []);
       setTotalCount(count || 0);
     } catch (error) {
       console.error('Failed to load sentences:', error);
@@ -152,7 +119,7 @@ export function Sentences() {
   };
 
   // 편집 모드 시작
-  const startEditing = (sentence: SentenceWithStats) => {
+  const startEditing = (sentence: Sentence) => {
     setEditingId(sentence.id);
     setEditingData({
       id: sentence.id,
@@ -321,14 +288,6 @@ export function Sentences() {
     }
   };
 
-  const getScoreColor = (score?: number) => {
-    if (!score) return 'text-gray-400';
-    if (score >= 90) return 'text-green-600';
-    if (score >= 70) return 'text-blue-600';
-    if (score >= 50) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
   const clearDateRange = () => {
     setDateRange({ startDate: '', endDate: '' });
     setCurrentPage(1);
@@ -373,11 +332,10 @@ export function Sentences() {
       {/* Table Header */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
-          <div className="col-span-4">{t.sentences.sentence}</div>
+          <div className="col-span-5">{t.sentences.sentence}</div>
           <div className="col-span-3">{t.sentences.translation}</div>
           <div className="col-span-1">{t.sentences.difficulty}</div>
-          <div className="col-span-2">{locale === 'en' ? 'Review Stats' : '복습 통계'}</div>
-          <div className="col-span-1">{t.sentences.registeredDate}</div>
+          <div className="col-span-2">{t.sentences.registeredDate}</div>
           <div className="col-span-1">{t.sentences.actions}</div>
         </div>
       </div>
@@ -393,7 +351,7 @@ export function Sentences() {
             }`}>
               <div className="grid grid-cols-12 gap-4 text-sm">
                 {/* 문장 컬럼 */}
-                <div className="col-span-4">
+                <div className="col-span-5">
                   <div className="flex items-start space-x-3">
                     <button
                       onClick={() => playAudio(
@@ -461,39 +419,8 @@ export function Sentences() {
                   )}
                 </div>
 
-                {/* 복습 통계 컬럼 */}
-                <div className="col-span-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center space-x-1">
-                        <RotateCcw className="w-3 h-3 text-blue-600" />
-                        <span className="text-xs text-gray-600">{sentence.review_count}{locale === 'en' ? ' reviews' : '회'}</span>
-                      </div>
-                      {sentence.incorrect_count > 0 && (
-                        <div className="flex items-center space-x-1">
-                          <Target className="w-3 h-3 text-red-500" />
-                          <span className="text-xs text-red-600">{sentence.incorrect_count}{locale === 'en' ? ' errors' : '회 틀림'}</span>
-                        </div>
-                      )}
-                    </div>
-                    {sentence.average_score !== undefined && (
-                      <div className="flex items-center space-x-1">
-                        <span className="text-xs text-gray-500">{locale === 'en' ? 'Avg:' : '평균:'}</span>
-                        <span className={`text-xs font-medium ${getScoreColor(sentence.average_score)}`}>
-                          {sentence.average_score}{locale === 'en' ? 'pts' : '점'}
-                        </span>
-                      </div>
-                    )}
-                    {sentence.last_review_date && (
-                      <div className="text-xs text-gray-400">
-                        {locale === 'en' ? 'Last:' : '최근:'} {format(new Date(sentence.last_review_date), 'MM/dd')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 {/* 등록일 컬럼 */}
-                <div className="col-span-1">
+                <div className="col-span-2">
                   <p className="text-gray-600">
                     {format(new Date(sentence.created_at), 'yyyy.MM.dd')}
                   </p>
