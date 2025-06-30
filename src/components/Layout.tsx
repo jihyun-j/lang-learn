@@ -75,6 +75,20 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Top Header with Logo */}
+      <div className="fixed top-0 left-64 right-0 z-40 bg-white shadow-sm border-b border-gray-200">
+        <div className="flex items-center justify-end px-6 py-3">
+          <div className="flex items-center">
+            <img 
+              src="/black_circle_360x360.png" 
+              alt="LangLearn Logo" 
+              className="w-10 h-10 object-contain"
+            />
+            <span className="ml-2 text-lg font-bold text-gray-900">{t.auth.appTitle}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
         <div className="flex flex-col h-full">
@@ -214,7 +228,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="ml-64">
+      <div className="ml-64 pt-16">
         <main className="py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {children}
