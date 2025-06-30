@@ -54,6 +54,25 @@ export function Layout({ children }: LayoutProps) {
     return flagMap[language] || '🌐';
   };
 
+  // 언어를 영어로 변환하는 함수
+  const getLanguageInEnglish = (language: string): string => {
+    const languageMap: { [key: string]: string } = {
+      '영어': 'English',
+      '일본어': 'Japanese',
+      '중국어': 'Chinese',
+      '프랑스어': 'French',
+      '독일어': 'German',
+      '스페인어': 'Spanish',
+      '이탈리아어': 'Italian',
+      '러시아어': 'Russian',
+      '포르투갈어': 'Portuguese',
+      '아랍어': 'Arabic',
+      '한국어': 'Korean',
+      'English': 'English',
+    };
+    return languageMap[language] || language;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
@@ -75,7 +94,7 @@ export function Layout({ children }: LayoutProps) {
                 >
                   <div className="flex items-center">
                     <span className="text-lg mr-2">{getLanguageFlag(selectedLanguage)}</span>
-                    <span>{selectedLanguage}</span>
+                    <span>{getLanguageInEnglish(selectedLanguage)}</span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${
                     isLanguageDropdownOpen ? 'rotate-180' : ''
@@ -95,7 +114,7 @@ export function Layout({ children }: LayoutProps) {
                         }`}
                       >
                         <span className="text-lg mr-2">{getLanguageFlag(language)}</span>
-                        <span>{language}</span>
+                        <span>{getLanguageInEnglish(language)}</span>
                       </button>
                     ))}
                   </div>
@@ -109,7 +128,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 rounded-lg">
                 <span className="text-lg mr-2">{getLanguageFlag(selectedLanguage)}</span>
-                <span className="text-blue-700">{selectedLanguage}</span>
+                <span className="text-blue-700">{getLanguageInEnglish(selectedLanguage)}</span>
               </div>
             </div>
           )}
