@@ -15,9 +15,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-blue-900 via-primary-blue-800 to-primary-blue-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 flex items-center justify-center">
         <div className="glass-card p-8 rounded-2xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-green-400 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-400 mx-auto"></div>
           <p className="text-white/80 mt-4 text-center">Loading...</p>
         </div>
       </div>

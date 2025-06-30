@@ -4,7 +4,7 @@
 
 @layer base {
   html, body {
-    @apply bg-gradient-to-br from-primary-blue-900 via-primary-blue-800 to-primary-blue-950;
+    @apply bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950;
     min-height: 100vh;
   }
   
@@ -27,7 +27,7 @@
   }
   
   .neon-text {
-    @apply text-transparent bg-clip-text bg-gradient-to-r from-accent-green-400 to-accent-green-300;
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-accent-400 to-accent-300;
   }
   
   .gradient-border {
@@ -36,7 +36,7 @@
   
   .gradient-border::before {
     content: '';
-    @apply absolute inset-0 rounded-lg p-[1px] bg-gradient-to-r from-accent-green-400 to-primary-blue-400;
+    @apply absolute inset-0 rounded-lg p-[1px] bg-gradient-to-r from-accent-400 to-primary-400;
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
   }
@@ -48,7 +48,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-primary-blue-900/50;
+  @apply bg-primary-900/50;
 }
 
 ::-webkit-scrollbar-thumb {

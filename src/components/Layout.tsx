@@ -64,12 +64,12 @@ export function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-blue-900 via-primary-blue-800 to-primary-blue-950">
+    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950">
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 z-50 w-64">
         <div className="flex flex-col h-full glass-card-light rounded-r-3xl border-r border-white/20">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-accent-green-500 to-primary-blue-500 rounded-tr-3xl">
+          <div className="flex items-center justify-center h-16 px-4 bg-gradient-to-r from-accent-500 to-primary-500 rounded-tr-3xl">
             <Sparkles className="w-8 h-8 text-white animate-pulse" />
             <span className="ml-2 text-xl font-bold text-white">{t.auth.appTitle}</span>
           </div>
@@ -98,7 +98,7 @@ export function Layout({ children }: LayoutProps) {
                         onClick={() => handleLanguageSelect(option.value)}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 first:rounded-t-lg last:rounded-b-lg transition-all duration-200 flex items-center ${
                           selectedLanguage === option.value
-                            ? 'bg-accent-green-500/20 text-accent-green-300 font-medium'
+                            ? 'bg-accent-500/20 text-accent-300 font-medium'
                             : 'text-white/80 hover:text-white'
                         }`}
                       >
@@ -115,7 +115,7 @@ export function Layout({ children }: LayoutProps) {
           {/* Single Language Display */}
           {availableLanguages.length === 1 && (
             <div className="px-4 py-3 border-b border-white/10">
-              <div className="flex items-center px-3 py-2 text-sm font-medium text-accent-green-300 bg-accent-green-500/20 rounded-lg border border-accent-green-400/30">
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-accent-300 bg-accent-500/20 rounded-lg border border-accent-400/30">
                 <span>{getCurrentLanguageDisplay()}</span>
               </div>
             </div>
@@ -133,12 +133,12 @@ export function Layout({ children }: LayoutProps) {
                   to={item.href}
                   className={`flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-300 group ${
                     isActive
-                      ? 'bg-gradient-to-r from-accent-green-500/30 to-primary-blue-500/30 text-white border border-accent-green-400/30 shadow-lg'
+                      ? 'bg-gradient-to-r from-accent-500/30 to-primary-500/30 text-white border border-accent-400/30 shadow-lg'
                       : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
                   }`}
                 >
                   <Icon className={`w-5 h-5 mr-3 transition-transform group-hover:scale-110 ${
-                    isActive ? 'text-accent-green-300' : ''
+                    isActive ? 'text-accent-300' : ''
                   }`} />
                   {item.name}
                 </Link>
@@ -149,7 +149,7 @@ export function Layout({ children }: LayoutProps) {
           {/* User Info */}
           <div className="p-4 border-t border-white/10">
             <div className="flex items-center glass-card-light rounded-xl p-3">
-              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-accent-green-400 to-primary-blue-400 rounded-full">
+              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-accent-400 to-primary-400 rounded-full">
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="ml-3 flex-1">
