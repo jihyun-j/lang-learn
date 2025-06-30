@@ -1,37 +1,38 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from './useAuth';
 
 export type Locale = 'ko' | 'en';
 
 export function useLocale() {
-  const { user } = useAuth();
-  
-  // Get user's native language and determine locale
-  const getUserLocale = (): Locale => {
-    if (!user) return 'ko'; // Default to Korean
+  // Get locale from localStorage or default to Korean
+  const [locale, setLocale] = useState<Locale>(() => {
+    const saved = localStorage.getItem('ui-locale');
+    return (saved === 'en' || saved === 'ko') ? saved : 'ko';
+  });
+
+  // Update localStorage when locale changes
+  const changeLocale = (newLocale: Locale) => {
+    setLocale(newLocale);
+    localStorage.setItem('ui-locale', newLocale);
     
-    const nativeLanguage = user.user_metadata?.native_language || '한국어';
-    
-    // Map native languages to locales
-    if (nativeLanguage === 'English' || nativeLanguage === '영어' && user.user_metadata?.native_language === 'English') {
-      return 'en';
-    }
-    
-    return 'ko'; // Default to Korean for all other languages
+    // Dispatch global event to notify all components
+    window.dispatchEvent(new CustomEvent('localeChanged', { detail: newLocale }));
   };
 
-  const [locale, setLocale] = useState<Locale>(getUserLocale());
-
-  // Update locale when user changes
+  // Listen for locale changes from other components
   useEffect(() => {
-    if (user) {
-      const newLocale = getUserLocale();
-      setLocale(newLocale);
-    }
-  }, [user]);
+    const handleLocaleChange = (event: CustomEvent) => {
+      setLocale(event.detail);
+    };
+
+    window.addEventListener('localeChanged', handleLocaleChange as EventListener);
+    return () => {
+      window.removeEventListener('localeChanged', handleLocaleChange as EventListener);
+    };
+  }, []);
 
   return {
     locale,
+    changeLocale,
     isKorean: locale === 'ko',
     isEnglish: locale === 'en',
   };

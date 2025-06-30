@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, List, User, LogOut, ChevronDown } from 'lucide-react';
+import { Home, BookOpen, List, User, LogOut, ChevronDown, Languages } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
@@ -13,7 +13,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { user, signOut } = useAuth();
   const { selectedLanguage, setSelectedLanguage, availableLanguages } = useLanguage();
-  const { locale } = useLocale();
+  const { locale, changeLocale } = useLocale();
   const t = getTranslation(locale);
   const location = useLocation();
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
@@ -155,6 +155,40 @@ export function Layout({ children }: LayoutProps) {
               );
             })}
           </nav>
+
+          {/* UI Language Toggle */}
+          <div className="px-4 py-3 border-t border-gray-200">
+            <div className="flex items-center mb-2">
+              <Languages className="w-4 h-4 text-gray-500 mr-2" />
+              <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                {locale === 'en' ? 'Interface Language' : '인터페이스 언어'}
+              </span>
+            </div>
+            <div className="flex rounded-lg bg-gray-100 p-1">
+              <button
+                onClick={() => changeLocale('ko')}
+                className={`flex-1 flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  locale === 'ko'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="mr-2">🇰🇷</span>
+                한국어
+              </button>
+              <button
+                onClick={() => changeLocale('en')}
+                className={`flex-1 flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  locale === 'en'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="mr-2">🇺🇸</span>
+                English
+              </button>
+            </div>
+          </div>
 
           {/* User Info */}
           <div className="p-4 border-t border-gray-200">
