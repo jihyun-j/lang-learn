@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, RotateCcw, Tag } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, RotateCcw, Tag, Edit3 } from 'lucide-react';
 import { translateSentence, checkGrammarAndSpelling, GrammarCheckResult } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -23,19 +23,22 @@ export function Learn() {
   const [grammarCheck, setGrammarCheck] = useState<GrammarCheckResult | null>(null);
   const [showGrammarCheck, setShowGrammarCheck] = useState(false);
   const [grammarCheckError, setGrammarCheckError] = useState<string | null>(null);
+  const [hasGrammarErrors, setHasGrammarErrors] = useState(false);
+  const [canSave, setCanSave] = useState(false);
   
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
 
-  // 종합적인 문장 처리 함수 (번역 + 키워드 + 문법검사 + 저장)
-  const handleComprehensiveProcessing = async () => {
-    if (!sentence.trim() || !user) return;
+  // 문법 검사 및 번역 처리 함수
+  const handleAnalyzeAndTranslate = async () => {
+    if (!sentence.trim()) return;
     
     setLoading(true);
     setGrammarCheckError(null);
     setAudioError(null);
+    setCanSave(false);
     
     try {
       // 1. 문법 검사 수행
@@ -44,9 +47,11 @@ export function Learn() {
         grammarResult = await checkGrammarAndSpelling(sentence, selectedLanguage);
         setGrammarCheck(grammarResult);
         setShowGrammarCheck(true);
+        setHasGrammarErrors(!grammarResult.isCorrect);
       } catch (grammarError) {
         console.warn('Grammar check failed, continuing with translation:', grammarError);
         setGrammarCheckError(grammarError instanceof Error ? grammarError.message : '문법 검사에 실패했지만 번역을 계속 진행합니다.');
+        setHasGrammarErrors(false); // 문법 검사 실패 시 오류 없음으로 간주
       }
 
       // 2. AI 번역 및 키워드 추출 수행
@@ -55,7 +60,27 @@ export function Learn() {
       setKeywords(result.keywords || []);
       setExplanation(result.explanation || '');
 
-      // 3. 기존 문장이 있는지 확인
+      // 3. 문법 오류가 없거나 문법 검사에 실패한 경우에만 저장 가능
+      if (!grammarResult || grammarResult.isCorrect) {
+        setCanSave(true);
+      }
+
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      alert(error instanceof Error ? error.message : t.errors.translationFailed);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 데이터베이스 저장 함수
+  const handleSaveToDatabase = async () => {
+    if (!translation || !user || !canSave) return;
+
+    setLoading(true);
+    
+    try {
+      // 기존 문장이 있는지 확인
       const { data: existingSentence, error: checkError } = await supabase
         .from('sentences')
         .select('id')
@@ -68,14 +93,14 @@ export function Learn() {
         throw checkError;
       }
 
-      // 4. 데이터베이스에 저장 또는 업데이트
+      // 데이터베이스에 저장 또는 업데이트
       if (existingSentence && existingSentence.length > 0) {
         // 기존 문장이 있으면 업데이트
         const { error: updateError } = await supabase
           .from('sentences')
           .update({
-            korean_translation: result.translation,
-            keywords: result.keywords || [],
+            korean_translation: translation,
+            keywords: keywords || [],
             difficulty: difficulty,
             updated_at: new Date().toISOString(),
           })
@@ -89,8 +114,8 @@ export function Learn() {
           .insert({
             user_id: user.id,
             english_text: sentence,
-            korean_translation: result.translation,
-            keywords: result.keywords || [],
+            korean_translation: translation,
+            keywords: keywords || [],
             difficulty: difficulty,
             target_language: selectedLanguage,
           });
@@ -100,8 +125,8 @@ export function Learn() {
 
       setSaved(true);
     } catch (error) {
-      console.error('Comprehensive processing failed:', error);
-      alert(error instanceof Error ? error.message : t.errors.translationFailed);
+      console.error('Save failed:', error);
+      alert(error instanceof Error ? error.message : t.errors.saveFailed);
     } finally {
       setLoading(false);
     }
@@ -121,6 +146,8 @@ export function Learn() {
     setAudioError(null);
     setIsPlayingInput(false);
     setIsPlayingResult(false);
+    setHasGrammarErrors(false);
+    setCanSave(false);
     
     // 음성 재생 중지
     window.speechSynthesis.cancel();
@@ -130,11 +157,23 @@ export function Learn() {
     setSentence(suggestion);
     setGrammarCheck(null);
     setShowGrammarCheck(false);
+    setHasGrammarErrors(false);
+    setCanSave(false);
+    setTranslation('');
+    setKeywords([]);
+    setExplanation('');
   };
 
   const applyCorrection = (original: string, suggestion: string) => {
     const correctedSentence = sentence.replace(original, suggestion);
     setSentence(correctedSentence);
+    setGrammarCheck(null);
+    setShowGrammarCheck(false);
+    setHasGrammarErrors(false);
+    setCanSave(false);
+    setTranslation('');
+    setKeywords([]);
+    setExplanation('');
   };
 
   // 언어별 음성 코드 매핑
@@ -318,7 +357,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>AI가 자동으로 문법, 번역, 키워드를 모두 분석해드려요</p>
+            <p>문법 오류가 있으면 먼저 수정 후 저장됩니다</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -393,32 +432,34 @@ export function Learn() {
                 <div className={`p-4 rounded-lg border ${
                   grammarCheck.isCorrect 
                     ? 'bg-green-50 border-green-200' 
-                    : 'bg-orange-50 border-orange-200'
+                    : 'bg-red-50 border-red-200'
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       {grammarCheck.isCorrect ? (
                         <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                       ) : (
-                        <AlertCircle className="w-5 h-5 text-orange-600 mr-2" />
+                        <XCircle className="w-5 h-5 text-red-600 mr-2" />
                       )}
                       <h4 className={`font-semibold ${
-                        grammarCheck.isCorrect ? 'text-green-900' : 'text-orange-900'
+                        grammarCheck.isCorrect ? 'text-green-900' : 'text-red-900'
                       }`}>
-                        {grammarCheck.isCorrect ? t.learn.grammarErrors : t.learn.errorsFound}
+                        {grammarCheck.isCorrect ? '문법 검사 통과' : '문법 오류 발견 - 수정 필요'}
                       </h4>
                     </div>
                     <span className={`text-sm font-medium ${
-                      grammarCheck.isCorrect ? 'text-green-700' : 'text-orange-700'
+                      grammarCheck.isCorrect ? 'text-green-700' : 'text-red-700'
                     }`}>
                       {t.learn.confidence} {grammarCheck.confidence}%
                     </span>
                   </div>
                   
                   {!grammarCheck.isCorrect && (
-                    <p className="text-sm text-orange-700 mt-2">
-                      {grammarCheck.errors.length}{t.learn.errorsDetected} {t.learn.checkSuggestions}
-                    </p>
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 font-medium">
+                        ⚠️ 문법 오류가 있어 데이터베이스에 저장할 수 없습니다. 아래 제안을 참고하여 문장을 수정해주세요.
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -498,25 +539,23 @@ export function Learn() {
               </div>
             </div>
 
-            {/* Process and Save Button */}
+            {/* Analyze Button */}
             <div className="flex justify-center">
               <button
-                onClick={handleComprehensiveProcessing}
-                disabled={loading || !sentence.trim() || saved}
-                className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-bold text-lg hover:from-green-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg"
+                onClick={handleAnalyzeAndTranslate}
+                disabled={loading || !sentence.trim()}
+                className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-bold text-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg"
               >
                 {loading ? (
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
-                ) : saved ? (
-                  <Check className="w-6 h-6 mr-3" />
                 ) : (
                   <Sparkles className="w-6 h-6 mr-3" />
                 )}
-                {loading ? 'AI 분석 중...' : saved ? '완료!' : 'AI 분석 및 저장'}
+                {loading ? 'AI 분석 중...' : 'AI 분석하기'}
               </button>
             </div>
 
-            {/* Comprehensive Results Display */}
+            {/* Translation Results Display */}
             {translation && (
               <div className="space-y-6 pt-6 border-t border-gray-200">
                 <div className="bg-gray-50 rounded-lg p-6">
@@ -592,20 +631,64 @@ export function Learn() {
                       <p className="text-sm text-yellow-800">{explanation}</p>
                     </div>
                   )}
-                </div>
 
-                {/* Next Sentence Button */}
-                {saved && (
-                  <div className="flex justify-center pt-4">
-                    <button
-                      onClick={handleNextSentence}
-                      className="flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all transform hover:scale-105"
-                    >
-                      <RotateCcw className="w-5 h-5 mr-2" />
-                      다음 문장 입력
-                    </button>
-                  </div>
-                )}
+                  {/* Save Status */}
+                  {hasGrammarErrors && (
+                    <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                      <div className="flex items-center">
+                        <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                        <p className="text-sm text-red-800 font-medium">
+                          문법 오류로 인해 저장할 수 없습니다. 위의 제안을 참고하여 문장을 수정해주세요.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {canSave && !saved && (
+                    <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                          <p className="text-sm text-green-800 font-medium">
+                            문법 검사 통과! 데이터베이스에 저장할 수 있습니다.
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleSaveToDatabase}
+                          disabled={loading}
+                          className="flex items-center px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {loading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          ) : (
+                            <Plus className="w-4 h-4 mr-2" />
+                          )}
+                          {loading ? '저장 중...' : '저장하기'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {saved && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Check className="w-5 h-5 text-blue-600 mr-2" />
+                          <p className="text-sm text-blue-800 font-medium">
+                            성공적으로 저장되었습니다! 🎉
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleNextSentence}
+                          className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          다음 문장 입력
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
