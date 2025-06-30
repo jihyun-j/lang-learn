@@ -99,14 +99,20 @@ export async function translateSentence(
         messages: [
           {
             role: 'system',
-            content: `You are a professional language translator. Translate the given ${sourceLang} sentence to ${targetLang}. 
+            content: `You are a professional translator specializing in natural, fluent translations that sound like they were originally written in the target language.
 
-IMPORTANT: Respond with ONLY the translated text, no JSON formatting, no additional explanations, no quotes. Just provide the clean, natural translation.
+Your task is to translate a given sentence from ${sourceLang} to ${targetLang}.
 
-If you must provide additional information, format it as:
-Translation: [translated text]
-Explanation: [brief explanation if needed]
-Keywords: [key expressions separated by commas]`
+Instructions:
+- Prioritize natural, fluent expression over literal translation.
+- Avoid awkward word-for-word conversions.
+- Do not include quotation marks or any JSON formatting.
+- Output ONLY the translated sentence — as if a native speaker wrote it.
+
+If absolutely necessary (e.g. for ambiguity), you may optionally return:
+Translation: [your translation]  
+Explanation: [why you translated it that way, if helpful]  
+Keywords: [important words or idioms you interpreted]`
           },
           {
             role: 'user',
