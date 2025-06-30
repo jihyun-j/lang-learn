@@ -338,20 +338,6 @@ export function Home() {
             </div>
           )}
           
-          {/* Legend */}
-          <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs">
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border-2 border-green-500 rounded-full mr-2 flex items-center justify-center">
-                <Check className="w-2 h-2 text-green-500" />
-              </div>
-              <span className="text-gray-600">{locale === 'en' ? 'Both Completed' : '둘 다 완료'}</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></div>
-              <span className="text-gray-600">{locale === 'en' ? 'Today' : '오늘'}</span>
-            </div>
-          </div>
-          
           {/* Weekly summary */}
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
