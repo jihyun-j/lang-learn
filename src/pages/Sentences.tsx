@@ -386,7 +386,7 @@ export function Sentences() {
                       ) : (
                         <div>
                           <p className="font-medium text-gray-900 break-words leading-relaxed">{sentence.english_text}</p>
-                          {/* 키워드를 문장 하단에 표시 */}
+                          {/* 키워드를 문장 하단에 표시 - 완전한 단어로 표시 */}
                           {sentence.keywords && sentence.keywords.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {sentence.keywords.slice(0, 4).map((keyword, index) => (
@@ -396,7 +396,7 @@ export function Sentences() {
                                   title={keyword}
                                 >
                                   <Tag className="w-2.5 h-2.5 mr-1" />
-                                  {keyword.length > 10 ? `${keyword.substring(0, 10)}...` : keyword}
+                                  {keyword}
                                 </span>
                               ))}
                               {sentence.keywords.length > 4 && (
