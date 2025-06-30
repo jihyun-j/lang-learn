@@ -165,22 +165,57 @@ export function Home() {
   const getActivityColor = (date: Date, sentences: number, reviews: number) => {
     const today = isToday(date);
     const hasActivity = sentences > 0 || reviews > 0;
+    const bothCompleted = sentences > 0 && reviews > 0;
 
     if (today) {
-      return hasActivity 
-        ? 'bg-blue-500 text-white ring-4 ring-blue-200 shadow-lg scale-110' 
-        : 'bg-blue-500 text-white ring-4 ring-blue-200 shadow-lg scale-110';
+      return 'bg-blue-500 text-white ring-4 ring-blue-200 shadow-lg scale-110';
+    } else if (bothCompleted) {
+      return 'bg-white text-gray-900 shadow-md border-2 border-green-500';
     } else if (hasActivity) {
-      if (sentences > 0 && reviews > 0) {
-        return 'bg-purple-500 text-white shadow-md';
-      } else if (sentences > 0) {
-        return 'bg-blue-500 text-white shadow-md';
-      } else {
-        return 'bg-green-500 text-white shadow-md';
-      }
+      return 'bg-gray-200 text-gray-900 shadow-md';
     } else {
       return 'bg-gray-200 text-gray-600';
     }
+  };
+
+  const renderDayContent = (date: Date, sentences: number, reviews: number) => {
+    const today = isToday(date);
+    const bothCompleted = sentences > 0 && reviews > 0;
+
+    if (today) {
+      return getDayNumber(date);
+    } else if (bothCompleted) {
+      return <Check className="w-6 h-6 text-green-500" />;
+    } else {
+      return getDayNumber(date);
+    }
+  };
+
+  const renderActivityDetails = (date: Date, sentences: number, reviews: number) => {
+    const today = isToday(date);
+    const hasActivity = sentences > 0 || reviews > 0;
+    const bothCompleted = sentences > 0 && reviews > 0;
+
+    if (today || bothCompleted || !hasActivity) {
+      return null;
+    }
+
+    return (
+      <div className="mt-2 text-xs space-y-1">
+        {sentences > 0 && (
+          <div className="flex items-center justify-center text-blue-600">
+            <BookOpen className="w-3 h-3 mr-1" />
+            <span>{sentences}</span>
+          </div>
+        )}
+        {reviews > 0 && (
+          <div className="flex items-center justify-center text-green-600">
+            <Brain className="w-3 h-3 mr-1" />
+            <span>{reviews}</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -279,7 +314,7 @@ export function Home() {
               {weeklyActivity.map((day, index) => {
                 const today = isToday(day.date);
                 const hasActivity = day.sentences > 0 || day.reviews > 0;
-                const activityIcon = getActivityIcon(day.sentences, day.reviews);
+                const bothCompleted = day.sentences > 0 && day.reviews > 0;
                 
                 return (
                   <div key={index} className="text-center flex flex-col items-center justify-center">
@@ -290,15 +325,8 @@ export function Home() {
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
                         getActivityColor(day.date, day.sentences, day.reviews)
                       }`}>
-                        {getDayNumber(day.date)}
+                        {renderDayContent(day.date, day.sentences, day.reviews)}
                       </div>
-                      
-                      {/* Activity indicator */}
-                      {activityIcon && (
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-gray-100">
-                          {activityIcon}
-                        </div>
-                      )}
                       
                       {/* Today indicator */}
                       {today && (
@@ -307,22 +335,7 @@ export function Home() {
                     </div>
                     
                     {/* Activity details */}
-                    {hasActivity && (
-                      <div className="mt-2 text-xs space-y-1">
-                        {day.sentences > 0 && (
-                          <div className="flex items-center justify-center text-blue-600">
-                            <BookOpen className="w-3 h-3 mr-1" />
-                            <span>{day.sentences}</span>
-                          </div>
-                        )}
-                        {day.reviews > 0 && (
-                          <div className="flex items-center justify-center text-green-600">
-                            <Brain className="w-3 h-3 mr-1" />
-                            <span>{day.reviews}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {renderActivityDetails(day.date, day.sentences, day.reviews)}
                   </div>
                 );
               })}
@@ -342,9 +355,10 @@ export function Home() {
               <span className="text-gray-600">{t.home.review}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-purple-500 rounded-full mr-2"></div>
-              <Zap className="w-3 h-3 mr-1 text-purple-600" />
-              <span className="text-gray-600">{locale === 'en' ? 'Both' : '둘 다'}</span>
+              <div className="w-4 h-4 bg-white border-2 border-green-500 rounded-full mr-2 flex items-center justify-center">
+                <Check className="w-2 h-2 text-green-500" />
+              </div>
+              <span className="text-gray-600">{locale === 'en' ? 'Both Completed' : '둘 다 완료'}</span>
             </div>
             <div className="flex items-center">
               <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></div>
