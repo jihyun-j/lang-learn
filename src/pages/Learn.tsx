@@ -19,7 +19,7 @@ export function Learn() {
   const [isPlayingResult, setIsPlayingResult] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   
-  // 문법 검사 관련 상태
+  // Grammar check related states
   const [grammarCheck, setGrammarCheck] = useState<GrammarCheckResult | null>(null);
   const [showGrammarCheck, setShowGrammarCheck] = useState(false);
   const [grammarCheckError, setGrammarCheckError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function Learn() {
   const { locale } = useLocale();
   const t = getTranslation(locale);
 
-  // 문법 검사 및 번역 처리 함수
+  // Grammar check and translation processing function
   const handleAnalyzeAndTranslate = async () => {
     if (!sentence.trim()) return;
     
@@ -41,7 +41,7 @@ export function Learn() {
     setCanSave(false);
     
     try {
-      // 1. 문법 검사 수행
+      // 1. Perform grammar check
       let grammarResult: GrammarCheckResult | null = null;
       try {
         grammarResult = await checkGrammarAndSpelling(sentence, selectedLanguage);
@@ -50,17 +50,17 @@ export function Learn() {
         setHasGrammarErrors(!grammarResult.isCorrect);
       } catch (grammarError) {
         console.warn('Grammar check failed, continuing with translation:', grammarError);
-        setGrammarCheckError(grammarError instanceof Error ? grammarError.message : '문법 검사에 실패했지만 번역을 계속 진행합니다.');
-        setHasGrammarErrors(false); // 문법 검사 실패 시 오류 없음으로 간주
+        setGrammarCheckError(grammarError instanceof Error ? grammarError.message : 'Grammar check failed but translation will continue.');
+        setHasGrammarErrors(false); // Consider no errors if grammar check fails
       }
 
-      // 2. AI 번역 및 키워드 추출 수행
-      const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
+      // 2. Perform AI translation and keyword extraction
+      const result = await translateSentence(sentence, selectedLanguage, 'English');
       setTranslation(result.translation);
       setKeywords(result.keywords || []);
       setExplanation(result.explanation || '');
 
-      // 3. 문법 오류가 없거나 문법 검사에 실패한 경우에만 저장 가능
+      // 3. Allow saving only if no grammar errors or grammar check failed
       if (!grammarResult || grammarResult.isCorrect) {
         setCanSave(true);
       }
@@ -73,14 +73,14 @@ export function Learn() {
     }
   };
 
-  // 데이터베이스 저장 함수
+  // Database save function
   const handleSaveToDatabase = async () => {
     if (!translation || !user || !canSave) return;
 
     setLoading(true);
     
     try {
-      // 기존 문장이 있는지 확인
+      // Check if existing sentence exists
       const { data: existingSentence, error: checkError } = await supabase
         .from('sentences')
         .select('id')
@@ -93,9 +93,9 @@ export function Learn() {
         throw checkError;
       }
 
-      // 데이터베이스에 저장 또는 업데이트
+      // Save or update to database
       if (existingSentence && existingSentence.length > 0) {
-        // 기존 문장이 있으면 업데이트
+        // Update existing sentence
         const { error: updateError } = await supabase
           .from('sentences')
           .update({
@@ -108,7 +108,7 @@ export function Learn() {
 
         if (updateError) throw updateError;
       } else {
-        // 기존 문장이 없으면 새로 삽입
+        // Insert new sentence
         const { error: insertError } = await supabase
           .from('sentences')
           .insert({
@@ -132,7 +132,7 @@ export function Learn() {
     }
   };
 
-  // 다음 문장 입력 함수
+  // Next sentence input function
   const handleNextSentence = () => {
     setSentence('');
     setTranslation('');
@@ -149,7 +149,7 @@ export function Learn() {
     setHasGrammarErrors(false);
     setCanSave(false);
     
-    // 음성 재생 중지
+    // Stop voice playback
     window.speechSynthesis.cancel();
   };
 
@@ -176,7 +176,7 @@ export function Learn() {
     setExplanation('');
   };
 
-  // 언어별 음성 코드 매핑
+  // Language-specific voice code mapping
   const getLanguageCode = (language: string): string => {
     const languageMap: { [key: string]: string } = {
       '영어': 'en-US',
@@ -193,7 +193,7 @@ export function Learn() {
     return languageMap[language] || 'en-US';
   };
 
-  // 음성 재생 함수
+  // Audio playback function
   const playAudio = async (text: string, isInput: boolean = false) => {
     if (!text.trim()) return;
 
@@ -202,7 +202,7 @@ export function Learn() {
     try {
       const currentlyPlaying = isInput ? isPlayingInput : isPlayingResult;
       
-      // 이미 재생 중인 경우 중지
+      // Stop if already playing
       if (currentlyPlaying) {
         window.speechSynthesis.cancel();
         setIsPlayingInput(false);
@@ -210,7 +210,7 @@ export function Learn() {
         return;
       }
 
-      // 다른 음성 중지
+      // Stop other audio
       window.speechSynthesis.cancel();
 
       if (isInput) {
@@ -219,15 +219,15 @@ export function Learn() {
         setIsPlayingResult(true);
       }
 
-      // 음성 합성 설정
+      // Speech synthesis settings
       const utterance = new SpeechSynthesisUtterance(text);
       const languageCode = getLanguageCode(selectedLanguage);
       utterance.lang = languageCode;
-      utterance.rate = 0.8; // 조금 느리게
+      utterance.rate = 0.8; // Slightly slower
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      // 사용 가능한 음성 중에서 해당 언어 음성 찾기
+      // Find target language voice from available voices
       const voices = window.speechSynthesis.getVoices();
       const targetVoice = voices.find(voice => 
         voice.lang.startsWith(languageCode.split('-')[0]) || 
@@ -238,13 +238,13 @@ export function Learn() {
         utterance.voice = targetVoice;
       }
 
-      // 재생 완료 시 상태 초기화
+      // Reset state when playback ends
       utterance.onend = () => {
         setIsPlayingInput(false);
         setIsPlayingResult(false);
       };
 
-      // 에러 처리
+      // Error handling
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         setIsPlayingInput(false);
@@ -253,7 +253,7 @@ export function Learn() {
         setTimeout(() => setAudioError(null), 3000);
       };
 
-      // 음성 재생
+      // Play audio
       window.speechSynthesis.speak(utterance);
 
     } catch (error) {
@@ -264,7 +264,7 @@ export function Learn() {
       const errorMessage = error instanceof Error ? error.message : t.errors.unknownError;
       setAudioError(errorMessage);
       
-      // 3초 후 에러 메시지 자동 제거
+      // Auto-remove error message after 3 seconds
       setTimeout(() => setAudioError(null), 3000);
     }
   };
@@ -357,7 +357,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>문법 오류가 있으면 먼저 수정 후 저장됩니다</p>
+            <p>Grammar errors will be corrected before saving</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -398,12 +398,12 @@ export function Learn() {
                   value={sentence}
                   onChange={(e) => setSentence(e.target.value)}
                   className="w-full px-4 py-3 pr-16 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors"
-                  placeholder={selectedLanguage === '영어' ? "예: How are you doing today?" : 
-                              selectedLanguage === '프랑스어' ? "예: Comment allez-vous aujourd'hui?" :
-                              selectedLanguage === '독일어' ? "예: Wie geht es Ihnen heute?" :
-                              selectedLanguage === '스페인어' ? "예: ¿Cómo estás hoy?" :
-                              selectedLanguage === '일본어' ? "예: 今日はいかがですか？" :
-                              selectedLanguage === '중국어' ? "例: 你今天怎么样？" :
+                  placeholder={selectedLanguage === '영어' ? "e.g., How are you doing today?" : 
+                              selectedLanguage === '프랑스어' ? "e.g., Comment allez-vous aujourd'hui?" :
+                              selectedLanguage === '독일어' ? "e.g., Wie geht es Ihnen heute?" :
+                              selectedLanguage === '스페인어' ? "e.g., ¿Cómo estás hoy?" :
+                              selectedLanguage === '일본어' ? "e.g., 今日はいかがですか？" :
+                              selectedLanguage === '중국어' ? "e.g., 你今天怎么样？" :
                               `${selectedLanguage} ${t.learn.enterSentence}`}
                 />
                 
@@ -444,7 +444,7 @@ export function Learn() {
                       <h4 className={`font-semibold ${
                         grammarCheck.isCorrect ? 'text-green-900' : 'text-red-900'
                       }`}>
-                        {grammarCheck.isCorrect ? '문법 검사 통과' : '문법 오류 발견 - 수정 필요'}
+                        {grammarCheck.isCorrect ? 'Grammar Check Passed' : 'Grammar Errors Found - Correction Required'}
                       </h4>
                     </div>
                     <span className={`text-sm font-medium ${
@@ -457,7 +457,7 @@ export function Learn() {
                   {!grammarCheck.isCorrect && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-sm text-yellow-800 font-medium">
-                        ⚠️ 문법 오류가 있어 데이터베이스에 저장할 수 없습니다. 아래 제안을 참고하여 문장을 수정해주세요.
+                        ⚠️ Grammar errors detected. Cannot save to database. Please correct the sentence using the suggestions below.
                       </p>
                     </div>
                   )}
@@ -551,7 +551,7 @@ export function Learn() {
                 ) : (
                   <Sparkles className="w-6 h-6 mr-3" />
                 )}
-                {loading ? 'AI 분석 중...' : 'AI 분석하기'}
+                {loading ? 'AI Analyzing...' : 'AI Analyze'}
               </button>
             </div>
 
@@ -559,7 +559,7 @@ export function Learn() {
             {translation && (
               <div className="space-y-6 pt-6 border-t border-gray-200">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 AI 분석 결과</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 AI Analysis Results</h3>
                   
                   {/* Translation Result */}
                   <div className="space-y-4">
@@ -585,7 +585,7 @@ export function Learn() {
                     </div>
                     
                     <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
-                      <p className="text-sm text-gray-600 mb-1">{locale === 'en' ? 'English' : '한국어'} {t.learn.translation}</p>
+                      <p className="text-sm text-gray-600 mb-1">English {t.learn.translation}</p>
                       <p className="text-lg font-medium text-gray-900">{translation}</p>
                     </div>
                   </div>
@@ -596,7 +596,7 @@ export function Learn() {
                       <div className="flex items-center mb-3">
                         <Tag className="w-5 h-5 text-purple-600 mr-2" />
                         <h4 className="font-semibold text-purple-900">
-                          {locale === 'en' ? 'Key Expressions Found' : '발견된 주요 표현'}
+                          Key Expressions Found
                         </h4>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -611,10 +611,7 @@ export function Learn() {
                         ))}
                       </div>
                       <p className="text-xs text-purple-600 mt-2">
-                        {locale === 'en' 
-                          ? 'These are idioms, slang, or common phrases detected in your sentence'
-                          : '문장에서 발견된 관용구, 속어, 또는 일반적인 표현들입니다'
-                        }
+                        These are idioms, slang, or common phrases detected in your sentence
                       </p>
                     </div>
                   )}
@@ -625,7 +622,7 @@ export function Learn() {
                       <div className="flex items-center mb-2">
                         <Lightbulb className="w-5 h-5 text-yellow-600 mr-2" />
                         <h4 className="font-semibold text-yellow-900">
-                          {locale === 'en' ? 'Cultural Context' : '문화적 맥락'}
+                          Cultural Context
                         </h4>
                       </div>
                       <p className="text-sm text-yellow-800">{explanation}</p>
@@ -638,7 +635,7 @@ export function Learn() {
                       <div className="flex items-center">
                         <XCircle className="w-5 h-5 text-red-600 mr-2" />
                         <p className="text-sm text-red-800 font-medium">
-                          문법 오류로 인해 저장할 수 없습니다. 위의 제안을 참고하여 문장을 수정해주세요.
+                          Cannot save due to grammar errors. Please correct the sentence using the suggestions above.
                         </p>
                       </div>
                     </div>
@@ -650,7 +647,7 @@ export function Learn() {
                         <div className="flex items-center">
                           <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                           <p className="text-sm text-green-800 font-medium">
-                            문법 검사 통과! 데이터베이스에 저장할 수 있습니다.
+                            Grammar check passed! Ready to save to database.
                           </p>
                         </div>
                         <button
@@ -663,7 +660,7 @@ export function Learn() {
                           ) : (
                             <Plus className="w-4 h-4 mr-2" />
                           )}
-                          {loading ? '저장 중...' : '저장하기'}
+                          {loading ? 'Saving...' : 'Save'}
                         </button>
                       </div>
                     </div>
@@ -675,7 +672,7 @@ export function Learn() {
                         <div className="flex items-center">
                           <Check className="w-5 h-5 text-blue-600 mr-2" />
                           <p className="text-sm text-blue-800 font-medium">
-                            성공적으로 저장되었습니다! 🎉
+                            Successfully saved! 🎉
                           </p>
                         </div>
                         <button
@@ -683,7 +680,7 @@ export function Learn() {
                           className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                         >
                           <RotateCcw className="w-4 h-4 mr-2" />
-                          다음 문장 입력
+                          Next Sentence
                         </button>
                       </div>
                     </div>
