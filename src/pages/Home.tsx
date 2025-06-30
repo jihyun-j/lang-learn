@@ -282,11 +282,11 @@ export function Home() {
                 const activityIcon = getActivityIcon(day.sentences, day.reviews);
                 
                 return (
-                  <div key={index} className="text-center">
+                  <div key={index} className="text-center flex flex-col items-center justify-center">
                     <p className="text-xs text-gray-600 mb-2 font-medium">
                       {getDayLabel(day.date)}
                     </p>
-                    <div className="relative">
+                    <div className="relative flex items-center justify-center">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
                         getActivityColor(day.date, day.sentences, day.reviews)
                       }`}>
