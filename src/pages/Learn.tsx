@@ -80,14 +80,13 @@ export function Learn() {
         .select('id')
         .eq('user_id', user.id)
         .eq('english_text', sentence)
-        .single();
+        .limit(1);
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116은 "no rows returned" 에러로, 기존 문장이 없다는 의미
+      if (checkError) {
         throw checkError;
       }
 
-      if (existingSentence) {
+      if (existingSentence && existingSentence.length > 0) {
         // 기존 문장이 있으면 업데이트
         const { error: updateError } = await supabase
           .from('sentences')
@@ -97,7 +96,7 @@ export function Learn() {
             target_language: selectedLanguage,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', existingSentence.id);
+          .eq('id', existingSentence[0].id);
 
         if (updateError) throw updateError;
       } else {
