@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
 import { getTranslation } from '../utils/translations';
+import { updateUserProgress } from '../utils/userProgress';
 import { Sentence } from '../types';
 
 export function Quiz() {
@@ -32,7 +33,7 @@ export function Quiz() {
   const [quizStarted, setQuizStarted] = useState(false);
 
   const { user } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, selectedLanguageInEnglish } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
   
@@ -138,6 +139,11 @@ export function Quiz() {
           feedback: comparisonResult.feedback,
         });
 
+      // Update user progress and streak (only once per quiz completion)
+      if (newTotal === quizSentences.length) {
+        await updateUserProgress(user!.id);
+      }
+
     } catch (error) {
       console.error('Analysis failed:', error);
       setError(error instanceof Error ? error.message : t.errors.unknownError);
@@ -146,7 +152,7 @@ export function Quiz() {
     }
   };
 
-  // 언어별 음성 코드 매핑
+  // Language-specific voice code mapping
   const getLanguageCode = (language: string): string => {
     const languageMap: { [key: string]: string } = {
       '영어': 'en-US',
@@ -169,26 +175,26 @@ export function Quiz() {
     setAudioError(null);
 
     try {
-      // 이미 재생 중인 경우 중지
+      // Stop if already playing
       if (isPlayingAudio) {
         window.speechSynthesis.cancel();
         setIsPlayingAudio(false);
         return;
       }
 
-      // 다른 음성 중지
+      // Stop other audio
       window.speechSynthesis.cancel();
       setIsPlayingAudio(true);
 
-      // 음성 합성 설정
+      // Speech synthesis settings
       const utterance = new SpeechSynthesisUtterance(currentSentence.english_text);
       const languageCode = getLanguageCode(selectedLanguage);
       utterance.lang = languageCode;
-      utterance.rate = 0.8; // 조금 느리게 (학습에 적합)
+      utterance.rate = 0.8; // Slightly slower (suitable for learning)
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      // 사용 가능한 음성 중에서 해당 언어 음성 찾기
+      // Find target language voice from available voices
       const voices = window.speechSynthesis.getVoices();
       const targetVoice = voices.find(voice => 
         voice.lang.startsWith(languageCode.split('-')[0]) || 
@@ -199,12 +205,12 @@ export function Quiz() {
         utterance.voice = targetVoice;
       }
 
-      // 재생 완료 시 상태 초기화
+      // Reset state when playback ends
       utterance.onend = () => {
         setIsPlayingAudio(false);
       };
 
-      // 에러 처리
+      // Error handling
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         setIsPlayingAudio(false);
@@ -212,7 +218,7 @@ export function Quiz() {
         setTimeout(() => setAudioError(null), 3000);
       };
 
-      // 음성 재생
+      // Play audio
       window.speechSynthesis.speak(utterance);
 
     } catch (error) {
@@ -222,7 +228,7 @@ export function Quiz() {
       const errorMessage = error instanceof Error ? error.message : t.errors.unknownError;
       setAudioError(errorMessage);
       
-      // 3초 후 에러 메시지 자동 제거
+      // Auto-remove error message after 3 seconds
       setTimeout(() => setAudioError(null), 3000);
     }
   };
@@ -288,11 +294,11 @@ export function Quiz() {
           <div className="flex items-center justify-center">
             <Globe className="w-6 h-6 text-purple-600 mr-3" />
             <h2 className="text-2xl font-bold text-gray-900">
-              {t.quiz.quizLanguage} <span className="text-purple-600">{selectedLanguage}</span>
+              {t.quiz.quizLanguage} <span className="text-purple-600">{selectedLanguageInEnglish}</span>
             </h2>
           </div>
           <p className="text-center text-gray-600 mt-2">
-            {selectedLanguage}{t.quiz.quizLanguageDesc}
+            {selectedLanguageInEnglish}{t.quiz.quizLanguageDesc}
           </p>
         </div>
 
@@ -302,7 +308,7 @@ export function Quiz() {
               <Target className="w-12 h-12 text-gray-400" />
             </div>
             <p className="text-lg text-gray-600">
-              {selectedLanguage}{t.quiz.noSentences}
+              {selectedLanguageInEnglish}{t.quiz.noSentences}
             </p>
             <p className="text-sm text-gray-500 mt-2">{t.quiz.noSentencesHint}</p>
           </div>
@@ -319,7 +325,7 @@ export function Quiz() {
                     </div>
                     <div className="flex items-center justify-center p-3 bg-white rounded-lg">
                       <Globe className="w-5 h-5 text-purple-600 mr-2" />
-                      <span className="font-medium">{t.quiz.language} {selectedLanguage}</span>
+                      <span className="font-medium">{t.quiz.language} {selectedLanguageInEnglish}</span>
                     </div>
                   </div>
                 </div>
@@ -329,7 +335,7 @@ export function Quiz() {
                   <div className="text-left space-y-2 text-sm text-gray-600">
                     <div className="flex items-start">
                       <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                      <p>{locale === 'en' ? 'Look at Korean sentences and pronounce them in' : '한국어 문장을 보고'} {selectedLanguage}{locale === 'en' ? '' : '로 발음하세요'}</p>
+                      <p>{locale === 'en' ? 'Look at Korean sentences and pronounce them in' : '한국어 문장을 보고'} {selectedLanguageInEnglish}{locale === 'en' ? '' : '로 발음하세요'}</p>
                     </div>
                     <div className="flex items-start">
                       <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -439,7 +445,7 @@ export function Quiz() {
       <div className="text-center py-12">
         <div className="flex items-center justify-center mb-4">
           <Globe className="w-6 h-6 text-purple-600 mr-2" />
-          <span className="text-lg font-medium text-gray-700">{selectedLanguage}</span>
+          <span className="text-lg font-medium text-gray-700">{selectedLanguageInEnglish}</span>
         </div>
         <p className="text-lg text-gray-600">{t.common.loading}</p>
       </div>
@@ -451,7 +457,7 @@ export function Quiz() {
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           <Globe className="w-6 h-6 text-purple-600 mr-2" />
-          <span className="text-lg font-medium text-purple-600">{selectedLanguage}</span>
+          <span className="text-lg font-medium text-purple-600">{selectedLanguageInEnglish}</span>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.quiz.inProgress}</h1>
         <p className="text-lg text-gray-600">{t.quiz.inProgressSubtitle}</p>
@@ -495,7 +501,7 @@ export function Quiz() {
             {/* Korean Translation (Question) with Audio Button */}
             <div className="text-center bg-purple-50 rounded-lg p-8">
               <h2 className="text-sm font-medium text-purple-600 mb-2">
-                {locale === 'en' ? 'Please speak the following sentence in' : '다음 문장을'} {selectedLanguage}{locale === 'en' ? '' : '로 말해보세요'}
+                {locale === 'en' ? 'Please speak the following sentence in' : '다음 문장을'} {selectedLanguageInEnglish}{locale === 'en' ? '' : '로 말해보세요'}
               </h2>
               <p className="text-2xl font-bold text-purple-900 mb-6">{currentSentence.korean_translation}</p>
               
@@ -508,7 +514,7 @@ export function Quiz() {
                     ? 'bg-purple-700 text-white animate-pulse shadow-lg scale-105'
                     : 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-lg'
                 }`}
-                title={`${selectedLanguage} ${t.quiz.listenPronunciation} ${isPlayingAudio ? `(${t.review.audioPlaying})` : ''}`}
+                title={`${selectedLanguageInEnglish} ${t.quiz.listenPronunciation} ${isPlayingAudio ? `(${t.review.audioPlaying})` : ''}`}
               >
                 <Volume2 className={`w-5 h-5 mr-2 ${isPlayingAudio ? 'animate-bounce' : ''}`} />
                 {isPlayingAudio ? t.review.audioPlaying : t.quiz.listenPronunciation}
@@ -644,7 +650,7 @@ export function Quiz() {
                 <div className="flex items-center">
                   <Volume2 className="w-4 h-4 text-purple-600 mr-2 animate-pulse" />
                   <p className="text-sm text-purple-800">
-                    <strong>{selectedLanguage} {t.review.audioPlaying}</strong> {t.review.audioPlayingHint}
+                    <strong>{selectedLanguageInEnglish} {t.review.audioPlaying}</strong> {t.review.audioPlayingHint}
                   </p>
                 </div>
               </div>
@@ -690,9 +696,9 @@ export function Quiz() {
                selectedLanguage === '아랍어' ? '🇸🇦' : '🇺🇸'}
             </span>
             <div>
-              <p className="text-sm font-semibold text-purple-900 mb-1">{selectedLanguage} {locale === 'en' ? 'Quiz Mode' : '퀴즈 모드'}</p>
+              <p className="text-sm font-semibold text-purple-900 mb-1">{selectedLanguageInEnglish} {locale === 'en' ? 'Quiz Mode' : '퀴즈 모드'}</p>
               <p className="text-sm text-purple-800">
-                {locale === 'en' ? 'Provides accurate pronunciation for' : '현재 학습 중인'} <strong>{selectedLanguage}</strong>{locale === 'en' ? ' you are currently learning!' : '의 정확한 발음을 제공합니다!'} 
+                {locale === 'en' ? 'Provides accurate pronunciation for' : '현재 학습 중인'} <strong>{selectedLanguageInEnglish}</strong>{locale === 'en' ? ' you are currently learning!' : '의 정확한 발음을 제공합니다!'} 
                 {locale === 'en' ? ' Test your skills through quizzes and identify your weaknesses.' : ' 퀴즈를 통해 실력을 테스트하고 약점을 파악해보세요.'}
               </p>
             </div>

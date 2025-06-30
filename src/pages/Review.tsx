@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
 import { getTranslation } from '../utils/translations';
+import { updateUserProgress } from '../utils/userProgress';
 import { Sentence } from '../types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 
@@ -25,7 +26,7 @@ export function Review() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   
-  // 새로운 상태들
+  // New states
   const [reviewType, setReviewType] = useState<ReviewType>('recent');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
@@ -33,7 +34,7 @@ export function Review() {
   const [currentIndex, setCurrentIndex] = useState(0);
   
   const { user } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, selectedLanguageInEnglish } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
   
@@ -64,7 +65,7 @@ export function Review() {
 
       switch (reviewType) {
         case 'recent':
-          // 선택된 날짜의 문장들
+          // Sentences from selected date
           const startDate = startOfDay(new Date(selectedDate));
           const endDate = endOfDay(new Date(selectedDate));
           query = query
@@ -74,7 +75,7 @@ export function Review() {
           break;
 
         case 'difficulty':
-          // 선택된 난이도의 문장들
+          // Sentences of selected difficulty
           query = query
             .eq('difficulty', selectedDifficulty)
             .order('created_at', { ascending: false })
@@ -82,7 +83,7 @@ export function Review() {
           break;
 
         case 'mistakes':
-          // 자주 틀리는 문장들 (낮은 점수의 리뷰 세션이 있는 문장들)
+          // Frequently missed sentences (sentences with low score review sessions)
           const { data: poorReviews } = await supabase
             .from('review_sessions')
             .select('sentence_id')
@@ -95,7 +96,7 @@ export function Review() {
             const sentenceIds = [...new Set(poorReviews.map(r => r.sentence_id))];
             query = query.in('id', sentenceIds);
           } else {
-            // 틀린 문장이 없으면 최근 문장들로 대체
+            // If no mistakes, use recent sentences as fallback
             query = query.order('created_at', { ascending: false }).limit(10);
           }
           break;
@@ -140,6 +141,7 @@ export function Review() {
         feedback: comparisonResult.feedback
       });
 
+      // Save review session
       await supabase
         .from('review_sessions')
         .insert({
@@ -151,6 +153,9 @@ export function Review() {
           feedback: comparisonResult.feedback,
         });
 
+      // Update user progress and streak
+      await updateUserProgress(user!.id);
+
     } catch (error) {
       console.error('Analysis failed:', error);
       setError(error instanceof Error ? error.message : t.errors.unknownError);
@@ -159,7 +164,7 @@ export function Review() {
     }
   };
 
-  // 언어별 음성 코드 매핑
+  // Language-specific voice code mapping
   const getLanguageCode = (language: string): string => {
     const languageMap: { [key: string]: string } = {
       '영어': 'en-US',
@@ -182,26 +187,26 @@ export function Review() {
     setAudioError(null);
 
     try {
-      // 이미 재생 중인 경우 중지
+      // Stop if already playing
       if (isPlayingAudio) {
         window.speechSynthesis.cancel();
         setIsPlayingAudio(false);
         return;
       }
 
-      // 다른 음성 중지
+      // Stop other audio
       window.speechSynthesis.cancel();
       setIsPlayingAudio(true);
 
-      // 음성 합성 설정
+      // Speech synthesis settings
       const utterance = new SpeechSynthesisUtterance(currentSentence.english_text);
       const languageCode = getLanguageCode(selectedLanguage);
       utterance.lang = languageCode;
-      utterance.rate = 0.8; // 조금 느리게 (학습에 적합)
+      utterance.rate = 0.8; // Slightly slower (suitable for learning)
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      // 사용 가능한 음성 중에서 해당 언어 음성 찾기
+      // Find target language voice from available voices
       const voices = window.speechSynthesis.getVoices();
       const targetVoice = voices.find(voice => 
         voice.lang.startsWith(languageCode.split('-')[0]) || 
@@ -212,12 +217,12 @@ export function Review() {
         utterance.voice = targetVoice;
       }
 
-      // 재생 완료 시 상태 초기화
+      // Reset state when playback ends
       utterance.onend = () => {
         setIsPlayingAudio(false);
       };
 
-      // 에러 처리
+      // Error handling
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         setIsPlayingAudio(false);
@@ -225,7 +230,7 @@ export function Review() {
         setTimeout(() => setAudioError(null), 3000);
       };
 
-      // 음성 재생
+      // Play audio
       window.speechSynthesis.speak(utterance);
 
     } catch (error) {
@@ -235,7 +240,7 @@ export function Review() {
       const errorMessage = error instanceof Error ? error.message : t.errors.unknownError;
       setAudioError(errorMessage);
       
-      // 3초 후 에러 메시지 자동 제거
+      // Auto-remove error message after 3 seconds
       setTimeout(() => setAudioError(null), 3000);
     }
   };
@@ -248,7 +253,7 @@ export function Review() {
     setIsPlayingAudio(false);
     clearRecording();
     
-    // 다음 문장으로 이동
+    // Move to next sentence
     if (availableSentences.length > 0) {
       const nextIndex = (currentIndex + 1) % availableSentences.length;
       setCurrentIndex(nextIndex);
@@ -290,7 +295,7 @@ export function Review() {
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
           <Globe className="w-6 h-6 text-blue-600 mr-2" />
-          <span className="text-lg font-medium text-blue-600">{selectedLanguage}</span>
+          <span className="text-lg font-medium text-blue-600">{selectedLanguageInEnglish}</span>
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.review.title}</h1>
         <p className="text-lg text-gray-600">{t.review.subtitle}</p>
@@ -450,7 +455,7 @@ export function Review() {
               {/* Korean Translation (Question) with Audio Button */}
               <div className="text-center bg-blue-50 rounded-lg p-8">
                 <h2 className="text-sm font-medium text-blue-600 mb-2">
-                  {t.review.speakSentence} {selectedLanguage}{locale === 'en' ? '' : '로 말해보세요'}
+                  {t.review.speakSentence} {selectedLanguageInEnglish}{locale === 'en' ? '' : '로 말해보세요'}
                 </h2>
                 <p className="text-2xl font-bold text-blue-900 mb-6">{currentSentence.korean_translation}</p>
                 
@@ -463,7 +468,7 @@ export function Review() {
                       ? 'bg-blue-700 text-white animate-pulse shadow-lg scale-105'
                       : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
                   }`}
-                  title={`${selectedLanguage} ${t.review.tipPronunciation} ${isPlayingAudio ? `(${t.review.audioPlaying})` : ''}`}
+                  title={`${selectedLanguageInEnglish} ${t.review.tipPronunciation} ${isPlayingAudio ? `(${t.review.audioPlaying})` : ''}`}
                 >
                   <Volume2 className={`w-5 h-5 mr-2 ${isPlayingAudio ? 'animate-bounce' : ''}`} />
                   {isPlayingAudio ? t.review.audioPlaying : t.quiz.listenPronunciation}
@@ -599,7 +604,7 @@ export function Review() {
                   <div className="flex items-center">
                     <Volume2 className="w-4 h-4 text-blue-600 mr-2 animate-pulse" />
                     <p className="text-sm text-blue-800">
-                      <strong>{selectedLanguage} {t.review.audioPlaying}</strong> {t.review.audioPlayingHint}
+                      <strong>{selectedLanguageInEnglish} {t.review.audioPlaying}</strong> {t.review.audioPlayingHint}
                     </p>
                   </div>
                 </div>

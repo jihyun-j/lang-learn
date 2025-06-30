@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
 import { getTranslation } from '../utils/translations';
+import { updateUserProgress } from '../utils/userProgress';
 
 export function Learn() {
   const [sentence, setSentence] = useState('');
@@ -122,6 +123,9 @@ export function Learn() {
 
         if (insertError) throw insertError;
       }
+
+      // Update user progress and streak
+      await updateUserProgress(user.id);
 
       setSaved(true);
     } catch (error) {

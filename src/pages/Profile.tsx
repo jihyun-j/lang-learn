@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
 import { getTranslation } from '../utils/translations';
+import { getUserProgress, UserProgressData } from '../utils/userProgress';
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 interface ProfileStats {
@@ -51,6 +52,7 @@ interface UserProfile {
 export function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [userProgress, setUserProgress] = useState<UserProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -59,7 +61,7 @@ export function Profile() {
   });
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
   const { user } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, selectedLanguageInEnglish } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
 
@@ -71,6 +73,7 @@ export function Profile() {
     if (user) {
       loadProfileData();
       loadStatsData();
+      loadUserProgress();
     }
   }, [user, timeRange, selectedLanguage]);
 
@@ -95,6 +98,17 @@ export function Profile() {
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
+    }
+  };
+
+  const loadUserProgress = async () => {
+    if (!user) return;
+
+    try {
+      const progressData = await getUserProgress(user.id);
+      setUserProgress(progressData);
+    } catch (error) {
+      console.error('Failed to load user progress:', error);
     }
   };
 
@@ -216,8 +230,8 @@ export function Profile() {
         totalSentences,
         totalReviews,
         averageAccuracy,
-        streakDays: 7, // Mock data
-        totalStudyTime: 1250, // Mock data in minutes
+        streakDays: userProgress?.current_streak || 0, // Use real streak data
+        totalStudyTime: userProgress?.total_study_time || 0, // Use real study time
         weeklyData,
         accuracyData: accuracyRanges,
         monthlyProgress,
@@ -329,7 +343,7 @@ export function Profile() {
         <div className="flex items-center justify-center">
           <Globe className="w-6 h-6 text-blue-600 mr-3" />
           <h2 className="text-2xl font-bold text-gray-900">
-            {t.profile.currentLanguage} <span className="text-blue-600">{selectedLanguage}</span>
+            {t.profile.currentLanguage} <span className="text-blue-600">{selectedLanguageInEnglish}</span>
           </h2>
         </div>
         <p className="text-center text-gray-600 mt-2">
@@ -469,7 +483,7 @@ export function Profile() {
       {/* Learning Statistics Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{selectedLanguage} {t.profile.learningStats}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{selectedLanguageInEnglish} {t.profile.learningStats}</h2>
           <p className="mt-1 text-gray-600">{t.profile.learningStatsDesc}</p>
         </div>
         <div className="mt-4 sm:mt-0">
