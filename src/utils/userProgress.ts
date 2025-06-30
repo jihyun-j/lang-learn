@@ -11,6 +11,70 @@ export interface UserProgressData {
 }
 
 /**
+ * Calculates actual study time based on review sessions
+ * @param userId - The user's ID
+ * @returns Promise<number> - Total study time in minutes
+ */
+async function calculateActualStudyTime(userId: string): Promise<number> {
+  try {
+    // Get all review sessions for the user
+    const { data: reviewSessions, error } = await supabase
+      .from('review_sessions')
+      .select('created_at, overall_score')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!reviewSessions || reviewSessions.length === 0) {
+      return 0;
+    }
+
+    // Calculate study time based on review sessions
+    // Each review session represents approximately 1-3 minutes of study time
+    // We'll use a more sophisticated calculation:
+    // - Base time per review: 2 minutes
+    // - Additional time for lower scores (more practice needed): up to 1 extra minute
+    let totalMinutes = 0;
+
+    reviewSessions.forEach(session => {
+      let sessionTime = 2; // Base 2 minutes per review
+      
+      // Add extra time for lower scores (indicates more practice/repetition)
+      if (session.overall_score < 60) {
+        sessionTime += 1.5; // Extra 1.5 minutes for very low scores
+      } else if (session.overall_score < 80) {
+        sessionTime += 1; // Extra 1 minute for medium scores
+      } else if (session.overall_score < 90) {
+        sessionTime += 0.5; // Extra 0.5 minutes for good scores
+      }
+      // Perfect scores (90+) get no extra time
+      
+      totalMinutes += sessionTime;
+    });
+
+    // Also add time for sentence creation (learning new sentences)
+    const { data: sentences, error: sentencesError } = await supabase
+      .from('sentences')
+      .select('created_at')
+      .eq('user_id', userId);
+
+    if (!sentencesError && sentences) {
+      // Each new sentence creation takes approximately 3-5 minutes
+      // (thinking, typing, translation, saving)
+      totalMinutes += sentences.length * 4; // 4 minutes average per sentence
+    }
+
+    return Math.round(totalMinutes);
+  } catch (error) {
+    console.error('Failed to calculate study time:', error);
+    return 0;
+  }
+}
+
+/**
  * Updates user progress and calculates consecutive learning days
  * @param userId - The user's ID
  * @returns Promise<void>
@@ -41,19 +105,21 @@ export async function updateUserProgress(userId: string): Promise<void> {
         const lastDate = new Date(lastStudyDate);
         
         if (isToday(lastDate)) {
-          // Already studied today, don't update streak
-          return;
+          // Already studied today, don't update streak but update other stats
+          newStreak = currentProgress.current_streak;
+          newLongestStreak = currentProgress.longest_streak;
         } else if (isYesterday(lastDate)) {
           // Studied yesterday, continue streak
           newStreak = currentProgress.current_streak + 1;
+          newLongestStreak = Math.max(newStreak, currentProgress.longest_streak || 0);
         } else {
           // Gap in studying, reset streak
           newStreak = 1;
+          newLongestStreak = Math.max(1, currentProgress.longest_streak || 0);
         }
+      } else {
+        newLongestStreak = Math.max(1, currentProgress.longest_streak || 0);
       }
-      
-      // Update longest streak if current streak is longer
-      newLongestStreak = Math.max(newStreak, currentProgress.longest_streak || 0);
     }
 
     // Get total sentences count for this user
@@ -81,8 +147,8 @@ export async function updateUserProgress(userId: string): Promise<void> {
     // Calculate sentences mastered (reviews with score >= 80)
     const sentencesMastered = reviewsData?.filter(review => review.overall_score >= 80).length || 0;
 
-    // Estimate total study time (rough calculation based on activities)
-    const estimatedStudyTime = (totalSentences * 2) + (reviewsData?.length || 0) * 1; // 2 min per sentence, 1 min per review
+    // Calculate actual study time based on real activity
+    const totalStudyTime = await calculateActualStudyTime(userId);
 
     // Upsert user progress
     const progressData = {
@@ -92,7 +158,7 @@ export async function updateUserProgress(userId: string): Promise<void> {
       last_study_date: today,
       total_sentences: totalSentences,
       sentences_mastered: sentencesMastered,
-      total_study_time: estimatedStudyTime,
+      total_study_time: totalStudyTime,
       updated_at: new Date().toISOString()
     };
 
@@ -106,7 +172,7 @@ export async function updateUserProgress(userId: string): Promise<void> {
       throw upsertError;
     }
 
-    console.log(`User progress updated: streak ${newStreak}, total sentences ${totalSentences}`);
+    console.log(`User progress updated: streak ${newStreak}, total sentences ${totalSentences}, study time ${totalStudyTime} minutes`);
   } catch (error) {
     console.error('Failed to update user progress:', error);
     // Don't throw error to prevent disrupting the main flow
@@ -128,14 +194,16 @@ export async function getUserProgress(userId: string): Promise<UserProgressData 
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // No progress record found, return default values
+        // No progress record found, calculate and return current values
+        const totalStudyTime = await calculateActualStudyTime(userId);
+        
         return {
           current_streak: 0,
           longest_streak: 0,
           last_study_date: null,
           total_sentences: 0,
           sentences_mastered: 0,
-          total_study_time: 0
+          total_study_time: totalStudyTime
         };
       }
       throw error;
@@ -164,5 +232,67 @@ export async function hasStudiedToday(userId: string): Promise<boolean> {
   } catch (error) {
     console.error('Failed to check if studied today:', error);
     return false;
+  }
+}
+
+/**
+ * Gets detailed study time breakdown for a user
+ * @param userId - The user's ID
+ * @returns Promise<{reviewTime: number, learningTime: number, totalTime: number}>
+ */
+export async function getStudyTimeBreakdown(userId: string): Promise<{
+  reviewTime: number;
+  learningTime: number;
+  totalTime: number;
+}> {
+  try {
+    // Calculate review time
+    const { data: reviewSessions, error: reviewError } = await supabase
+      .from('review_sessions')
+      .select('overall_score')
+      .eq('user_id', userId);
+
+    let reviewTime = 0;
+    if (!reviewError && reviewSessions) {
+      reviewSessions.forEach(session => {
+        let sessionTime = 2; // Base 2 minutes per review
+        
+        if (session.overall_score < 60) {
+          sessionTime += 1.5;
+        } else if (session.overall_score < 80) {
+          sessionTime += 1;
+        } else if (session.overall_score < 90) {
+          sessionTime += 0.5;
+        }
+        
+        reviewTime += sessionTime;
+      });
+    }
+
+    // Calculate learning time (sentence creation)
+    const { data: sentences, error: sentencesError } = await supabase
+      .from('sentences')
+      .select('id')
+      .eq('user_id', userId);
+
+    let learningTime = 0;
+    if (!sentencesError && sentences) {
+      learningTime = sentences.length * 4; // 4 minutes per sentence
+    }
+
+    const totalTime = reviewTime + learningTime;
+
+    return {
+      reviewTime: Math.round(reviewTime),
+      learningTime: Math.round(learningTime),
+      totalTime: Math.round(totalTime)
+    };
+  } catch (error) {
+    console.error('Failed to get study time breakdown:', error);
+    return {
+      reviewTime: 0,
+      learningTime: 0,
+      totalTime: 0
+    };
   }
 }
