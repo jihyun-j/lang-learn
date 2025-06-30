@@ -35,6 +35,34 @@ export function Layout({ children }: LayoutProps) {
     setIsLanguageDropdownOpen(false);
   };
 
+  // Language options with flags and English names
+  const getLanguageOptions = () => {
+    const languageMap: { [key: string]: { flag: string; name: string } } = {
+      '영어': { flag: '🇺🇸', name: 'English' },
+      '일본어': { flag: '🇯🇵', name: 'Japanese' },
+      '중국어': { flag: '🇨🇳', name: 'Chinese' },
+      '프랑스어': { flag: '🇫🇷', name: 'French' },
+      '독일어': { flag: '🇩🇪', name: 'German' },
+      '스페인어': { flag: '🇪🇸', name: 'Spanish' },
+      '이탈리아어': { flag: '🇮🇹', name: 'Italian' },
+      '러시아어': { flag: '🇷🇺', name: 'Russian' },
+      '포르투갈어': { flag: '🇧🇷', name: 'Portuguese' },
+      '아랍어': { flag: '🇸🇦', name: 'Arabic' },
+    };
+
+    return availableLanguages.map(lang => ({
+      value: lang,
+      flag: languageMap[lang]?.flag || '🌐',
+      name: languageMap[lang]?.name || lang,
+    }));
+  };
+
+  const getCurrentLanguageDisplay = () => {
+    const options = getLanguageOptions();
+    const current = options.find(opt => opt.value === selectedLanguage);
+    return current ? `${current.flag} ${current.name}` : selectedLanguage;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
@@ -56,7 +84,7 @@ export function Layout({ children }: LayoutProps) {
                 >
                   <div className="flex items-center">
                     <Globe className="w-4 h-4 mr-2 text-gray-500" />
-                    <span>{selectedLanguage}</span>
+                    <span>{getCurrentLanguageDisplay()}</span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${
                     isLanguageDropdownOpen ? 'rotate-180' : ''
@@ -65,17 +93,18 @@ export function Layout({ children }: LayoutProps) {
 
                 {isLanguageDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                    {availableLanguages.map((language) => (
+                    {getLanguageOptions().map((option) => (
                       <button
-                        key={language}
-                        onClick={() => handleLanguageSelect(language)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                          selectedLanguage === language
+                        key={option.value}
+                        onClick={() => handleLanguageSelect(option.value)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors flex items-center ${
+                          selectedLanguage === option.value
                             ? 'bg-blue-50 text-blue-700 font-medium'
                             : 'text-gray-700'
                         }`}
                       >
-                        {language}
+                        <span className="mr-2 text-base">{option.flag}</span>
+                        <span>{option.name}</span>
                       </button>
                     ))}
                   </div>
@@ -89,7 +118,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 rounded-lg">
                 <Globe className="w-4 h-4 mr-2 text-blue-600" />
-                <span className="text-blue-700">{selectedLanguage}</span>
+                <span className="text-blue-700">{getCurrentLanguageDisplay()}</span>
               </div>
             </div>
           )}
