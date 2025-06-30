@@ -74,19 +74,47 @@ export function Learn() {
       const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
       setTranslation(result.translation);
 
-      // 번역 결과와 함께 데이터베이스에 저장
-      const { error } = await supabase
+      // 기존 문장이 있는지 확인
+      const { data: existingSentence, error: checkError } = await supabase
         .from('sentences')
-        .insert({
-          user_id: user.id,
-          english_text: sentence,
-          korean_translation: result.translation,
-          keywords: [],
-          difficulty: difficulty,
-          target_language: selectedLanguage,
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('english_text', sentence)
+        .single();
 
-      if (error) throw error;
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116은 "no rows returned" 에러로, 기존 문장이 없다는 의미
+        throw checkError;
+      }
+
+      if (existingSentence) {
+        // 기존 문장이 있으면 업데이트
+        const { error: updateError } = await supabase
+          .from('sentences')
+          .update({
+            korean_translation: result.translation,
+            difficulty: difficulty,
+            target_language: selectedLanguage,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingSentence.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // 기존 문장이 없으면 새로 삽입
+        const { error: insertError } = await supabase
+          .from('sentences')
+          .insert({
+            user_id: user.id,
+            english_text: sentence,
+            korean_translation: result.translation,
+            keywords: [],
+            difficulty: difficulty,
+            target_language: selectedLanguage,
+          });
+
+        if (insertError) throw insertError;
+      }
 
       setSaved(true);
       setTimeout(() => {
