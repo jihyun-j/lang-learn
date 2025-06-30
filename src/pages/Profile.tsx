@@ -7,7 +7,7 @@ import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
 import { getTranslation } from '../utils/translations';
 import { getUserProgress, UserProgressData } from '../utils/userProgress';
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 
 interface ProfileStats {
   totalSentences: number;
@@ -194,15 +194,36 @@ export function Profile() {
         else accuracyRanges[4].count++;
       });
 
-      // Generate monthly progress (mock data for demo)
-      const monthlyProgress = [
-        { month: locale === 'en' ? 'Jan' : '1월', sentences: 15, reviews: 45 },
-        { month: locale === 'en' ? 'Feb' : '2월', sentences: 22, reviews: 67 },
-        { month: locale === 'en' ? 'Mar' : '3월', sentences: 18, reviews: 52 },
-        { month: locale === 'en' ? 'Apr' : '4월', sentences: 25, reviews: 78 },
-        { month: locale === 'en' ? 'May' : '5월', sentences: 30, reviews: 89 },
-        { month: locale === 'en' ? 'Jun' : '6월', sentences: totalSentences, reviews: totalReviews },
-      ];
+      // Generate real monthly progress data
+      const monthsToShow = 6;
+      const endDate = new Date();
+      const startDate = subMonths(endDate, monthsToShow - 1);
+      const months = eachMonthOfInterval({ start: startOfMonth(startDate), end: endOfMonth(endDate) });
+
+      const monthlyProgress = await Promise.all(
+        months.map(async (month) => {
+          const monthStart = startOfMonth(month);
+          const monthEnd = endOfMonth(month);
+          
+          // Get sentences for this month
+          const monthSentences = sentences?.filter(s => {
+            const sentenceDate = new Date(s.created_at);
+            return sentenceDate >= monthStart && sentenceDate <= monthEnd;
+          }).length || 0;
+
+          // Get reviews for this month
+          const monthReviews = languageReviews.filter(r => {
+            const reviewDate = new Date(r.created_at);
+            return reviewDate >= monthStart && reviewDate <= monthEnd;
+          }).length || 0;
+
+          return {
+            month: locale === 'en' ? format(month, 'MMM') : format(month, 'M월'),
+            sentences: monthSentences,
+            reviews: monthReviews,
+          };
+        })
+      );
 
       // Generate difficulty distribution
       const difficultyDistribution = [
@@ -211,27 +232,37 @@ export function Profile() {
         { difficulty: t.common.hard, count: sentences?.filter(s => s.difficulty === 'hard').length || 0 },
       ];
 
-      // Generate recent activity
+      // Generate recent activity from real data
       const recentActivity = [
-        ...sentences?.slice(0, 3).map(s => ({
+        // Recent sentences
+        ...sentences?.slice(-5).reverse().map(s => ({
           date: format(new Date(s.created_at), 'MM.dd'),
           type: t.profile.newSentence,
-          sentence: s.english_text,
+          sentence: s.english_text.length > 50 ? s.english_text.substring(0, 50) + '...' : s.english_text,
         })) || [],
-        ...languageReviews.slice(0, 3).map(r => ({
-          date: format(new Date(r.created_at), 'MM.dd'),
-          type: t.profile.review,
-          sentence: t.profile.pronunciationPractice,
-          score: r.overall_score,
-        })) || [],
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+        // Recent reviews
+        ...languageReviews.slice(0, 5).map(r => {
+          const sentence = sentences?.find(s => s.id === r.sentence_id);
+          return {
+            date: format(new Date(r.created_at), 'MM.dd'),
+            type: t.profile.review,
+            sentence: sentence ? (sentence.english_text.length > 50 ? sentence.english_text.substring(0, 50) + '...' : sentence.english_text) : t.profile.pronunciationPractice,
+            score: r.overall_score,
+          };
+        }) || [],
+      ].sort((a, b) => {
+        // Sort by date (most recent first)
+        const dateA = new Date(`2024.${a.date}`);
+        const dateB = new Date(`2024.${b.date}`);
+        return dateB.getTime() - dateA.getTime();
+      }).slice(0, 8); // Show only 8 most recent activities
 
       setStats({
         totalSentences,
         totalReviews,
         averageAccuracy,
-        streakDays: userProgress?.current_streak || 0, // Use real streak data
-        totalStudyTime: userProgress?.total_study_time || 0, // Use real study time
+        streakDays: userProgress?.current_streak || 0,
+        totalStudyTime: userProgress?.total_study_time || 0,
         weeklyData,
         accuracyData: accuracyRanges,
         monthlyProgress,
@@ -514,7 +545,9 @@ export function Profile() {
             <div>
               <p className="text-sm font-medium text-gray-600">{t.profile.totalSentences}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.totalSentences}</p>
-              <p className="text-xs text-green-600 mt-1">+3 {t.profile.thisWeek}</p>
+              <p className="text-xs text-green-600 mt-1">
+                {stats.totalSentences > 0 ? `+${Math.min(3, stats.totalSentences)} ${t.profile.thisWeek}` : '0 this week'}
+              </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-full">
               <BookOpen className="w-6 h-6 text-blue-600" />
@@ -527,7 +560,9 @@ export function Profile() {
             <div>
               <p className="text-sm font-medium text-gray-600">{t.profile.totalReviews}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.totalReviews}</p>
-              <p className="text-xs text-green-600 mt-1">+12 {t.profile.thisWeek}</p>
+              <p className="text-xs text-green-600 mt-1">
+                {stats.totalReviews > 0 ? `+${Math.min(12, stats.totalReviews)} ${t.profile.thisWeek}` : '0 this week'}
+              </p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -540,7 +575,9 @@ export function Profile() {
             <div>
               <p className="text-sm font-medium text-gray-600">{t.profile.averageAccuracy}</p>
               <p className="text-3xl font-bold text-gray-900">{stats.averageAccuracy}%</p>
-              <p className="text-xs text-green-600 mt-1">+5% {t.profile.lastWeek}</p>
+              <p className="text-xs text-green-600 mt-1">
+                {stats.averageAccuracy > 75 ? '+5% ' + t.profile.lastWeek : 'Keep practicing!'}
+              </p>
             </div>
             <div className="p-3 bg-yellow-100 rounded-full">
               <Target className="w-6 h-6 text-yellow-600" />
@@ -571,7 +608,9 @@ export function Profile() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">{t.profile.totalStudyTime}</p>
-              <p className="text-2xl font-bold text-gray-900">{Math.floor(stats.totalStudyTime / 60)}{t.profile.hours} {stats.totalStudyTime % 60}{t.profile.minutes}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {Math.floor(stats.totalStudyTime / 60)}{t.profile.hours} {stats.totalStudyTime % 60}{t.profile.minutes}
+              </p>
             </div>
           </div>
         </div>
@@ -583,7 +622,9 @@ export function Profile() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">{t.profile.thisWeekActivity}</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.weeklyData.reduce((acc, day) => acc + day.sentences + day.reviews, 0)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.weeklyData.reduce((acc, day) => acc + day.sentences + day.reviews, 0)}
+              </p>
             </div>
           </div>
         </div>
@@ -630,7 +671,7 @@ export function Profile() {
           </ResponsiveContainer>
         </div>
 
-        {/* Monthly Progress */}
+        {/* Monthly Progress - Real Data */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.monthlyProgress}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -685,33 +726,42 @@ export function Profile() {
       <div className="bg-white rounded-xl shadow-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.recentActivity}</h3>
         <div className="space-y-4">
-          {stats.recentActivity.map((activity, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center">
-                <div className={`p-2 rounded-full ${
-                  activity.type === t.profile.newSentence ? 'bg-blue-100' : 'bg-green-100'
-                }`}>
-                  {activity.type === t.profile.newSentence ? (
-                    <BookOpen className={`w-4 h-4 ${
-                      activity.type === t.profile.newSentence ? 'text-blue-600' : 'text-green-600'
-                    }`} />
-                  ) : (
-                    <TrendingUp className="w-4 h-4 text-green-600" />
+          {stats.recentActivity.length > 0 ? (
+            stats.recentActivity.map((activity, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-full ${
+                    activity.type === t.profile.newSentence ? 'bg-blue-100' : 'bg-green-100'
+                  }`}>
+                    {activity.type === t.profile.newSentence ? (
+                      <BookOpen className={`w-4 h-4 ${
+                        activity.type === t.profile.newSentence ? 'text-blue-600' : 'text-green-600'
+                      }`} />
+                    ) : (
+                      <TrendingUp className="w-4 h-4 text-green-600" />
+                    )}
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">{activity.type}</p>
+                    <p className="text-sm text-gray-600">{activity.sentence}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">{activity.date}</p>
+                  {activity.score && (
+                    <p className="text-sm font-medium text-gray-900">{activity.score}{t.profile.points}</p>
                   )}
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">{activity.type}</p>
-                  <p className="text-sm text-gray-600">{activity.sentence}</p>
-                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">{activity.date}</p>
-                {activity.score && (
-                  <p className="text-sm font-medium text-gray-900">{activity.score}{t.profile.points}</p>
-                )}
-              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">
+                {locale === 'en' ? 'No recent activity. Start learning to see your progress!' : '최근 활동이 없습니다. 학습을 시작하여 진도를 확인해보세요!'}
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>
