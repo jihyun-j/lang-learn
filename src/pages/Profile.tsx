@@ -30,6 +30,7 @@ interface ProfileStats {
     difficulty: string;
     count: number;
     percentage: number;
+    level: 'easy' | 'medium' | 'hard';
   }>;
   recentActivity: Array<{
     date: string;
@@ -66,11 +67,11 @@ export function Profile() {
     '영어', '일본어', '중국어', '프랑스어', '독일어', '스페인어', '이탈리아어', '러시아어', '포르투갈어', '아랍어'
   ];
 
-  // Colors for the pie chart
+  // Colors for the pie chart - matching difficulty button colors
   const DIFFICULTY_COLORS = {
-    easy: '#10B981',    // Green
-    medium: '#F59E0B',  // Yellow
-    hard: '#EF4444'     // Red
+    easy: '#10B981',    // Green-500 (matches easy button)
+    medium: '#F59E0B',  // Amber-500 (matches medium button)
+    hard: '#EF4444'     // Red-500 (matches hard button)
   };
 
   useEffect(() => {
@@ -211,7 +212,7 @@ export function Profile() {
         })
       );
 
-      // Generate difficulty distribution with real data
+      // Generate difficulty distribution with real data and proper color mapping
       const easyCount = sentences?.filter(s => s.difficulty === 'easy').length || 0;
       const mediumCount = sentences?.filter(s => s.difficulty === 'medium').length || 0;
       const hardCount = sentences?.filter(s => s.difficulty === 'hard').length || 0;
@@ -221,17 +222,20 @@ export function Profile() {
         { 
           difficulty: t.common.easy, 
           count: easyCount,
-          percentage: total > 0 ? Math.round((easyCount / total) * 100) : 0
+          percentage: total > 0 ? Math.round((easyCount / total) * 100) : 0,
+          level: 'easy' as const
         },
         { 
           difficulty: t.common.medium, 
           count: mediumCount,
-          percentage: total > 0 ? Math.round((mediumCount / total) * 100) : 0
+          percentage: total > 0 ? Math.round((mediumCount / total) * 100) : 0,
+          level: 'medium' as const
         },
         { 
           difficulty: t.common.hard, 
           count: hardCount,
-          percentage: total > 0 ? Math.round((hardCount / total) * 100) : 0
+          percentage: total > 0 ? Math.round((hardCount / total) * 100) : 0,
+          level: 'hard' as const
         },
       ];
 
@@ -354,7 +358,7 @@ export function Profile() {
       const data = payload[0].payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-900">{`${label}`}</p>
+          <p className="font-semibold text-gray-900">{`${data.difficulty}`}</p>
           <p className="text-sm text-gray-600">
             {`${locale === 'en' ? 'Count' : '개수'}: ${data.count}${locale === 'en' ? ' sentences' : '개'}`}
           </p>
@@ -709,12 +713,10 @@ export function Profile() {
                     fill="#8884d8"
                     dataKey="count"
                   >
-                    {stats.difficultyDistribution.map((entry, index) => (
+                    {stats.difficultyDistribution.filter(d => d.count > 0).map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
-                        fill={entry.difficulty === t.common.easy ? DIFFICULTY_COLORS.easy : 
-                              entry.difficulty === t.common.medium ? DIFFICULTY_COLORS.medium : 
-                              DIFFICULTY_COLORS.hard} 
+                        fill={DIFFICULTY_COLORS[entry.level]} 
                       />
                     ))}
                   </Pie>
@@ -728,11 +730,7 @@ export function Profile() {
                   <div key={index} className="flex items-center">
                     <div 
                       className="w-4 h-4 rounded mr-2"
-                      style={{ 
-                        backgroundColor: item.difficulty === t.common.easy ? DIFFICULTY_COLORS.easy : 
-                                        item.difficulty === t.common.medium ? DIFFICULTY_COLORS.medium : 
-                                        DIFFICULTY_COLORS.hard 
-                      }}
+                      style={{ backgroundColor: DIFFICULTY_COLORS[item.level] }}
                     ></div>
                     <span className="text-sm text-gray-600">
                       {item.difficulty} ({item.count})
