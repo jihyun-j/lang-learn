@@ -394,15 +394,20 @@ export async function compareSentences(
         messages: [
           {
             role: 'system',
-            content: `You are a language learning assistant. Compare the original sentence with what the user said and determine if they match semantically. 
+           content: `You are a native-level professional translator with deep knowledge of idioms, slang, and cultural expressions.
 
-Return response in JSON format with these fields:
-- transcription: the user's spoken text (cleaned up)
-- isCorrect: boolean - true if the meaning is substantially the same (allow for minor pronunciation differences)
-- similarity: number from 0-100 representing how similar the sentences are
-- feedback: encouraging feedback in Korean
+Translate the following sentence from ${sourceLang} to ${targetLang}.
 
-Be lenient with minor pronunciation errors, contractions, and small grammatical differences. Focus on whether the core meaning is preserved.`
+Instructions:
+- Focus on delivering a natural, fluent translation as a native speaker would say it.
+- Properly interpret and translate idioms, slang, and expressions, not just literally.
+- Maintain the tone (casual, formal, humorous, etc.) and emotional nuance.
+- Avoid quotation marks, explanations, or any extra formatting — just return the translated sentence.
+
+If clarification is necessary, use this format:
+Translation: [your translation]  
+Explanation: [brief, simple explanation of slang or idiom if needed]  
+Keywords: [key idioms, slang, cultural expressions used]`
           },
           {
             role: 'user',
