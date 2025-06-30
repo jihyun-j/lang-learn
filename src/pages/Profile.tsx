@@ -691,24 +691,13 @@ export function Profile() {
           </ResponsiveContainer>
         </div>
 
-        {/* Difficulty Distribution - Enhanced */}
+        {/* Difficulty Distribution - Pie Chart Only */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.difficultyDistribution}</h3>
           {stats.difficultyDistribution.some(d => d.count > 0) ? (
             <div className="space-y-6">
-              {/* Bar Chart */}
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={stats.difficultyDistribution} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="difficulty" type="category" width={60} />
-                  <Tooltip content={<DifficultyTooltip />} />
-                  <Bar dataKey="count" fill="#8B5CF6" />
-                </BarChart>
-              </ResponsiveContainer>
-              
               {/* Pie Chart */}
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={stats.difficultyDistribution.filter(d => d.count > 0)}
@@ -716,7 +705,7 @@ export function Profile() {
                     cy="50%"
                     labelLine={false}
                     label={renderCustomLabel}
-                    outerRadius={80}
+                    outerRadius={100}
                     fill="#8884d8"
                     dataKey="count"
                   >
@@ -735,7 +724,7 @@ export function Profile() {
 
               {/* Legend */}
               <div className="flex justify-center space-x-6">
-                {stats.difficultyDistribution.map((item, index) => (
+                {stats.difficultyDistribution.filter(item => item.count > 0).map((item, index) => (
                   <div key={index} className="flex items-center">
                     <div 
                       className="w-4 h-4 rounded mr-2"
