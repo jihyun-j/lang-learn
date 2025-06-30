@@ -56,7 +56,7 @@ export function Learn() {
       }
 
       // 2. Perform AI translation and keyword extraction - Always translate to Korean
-      const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
+      const result = await translateSentence(sentence, selectedLanguage, '한국어');
       setTranslation(result.translation);
       setKeywords(result.keywords || []);
       setExplanation(result.explanation || '');
@@ -601,7 +601,7 @@ export function Learn() {
                     
                     <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
                       <p className="text-sm text-gray-600 mb-1">
-                        {locale === 'en' ? 'Korean' : '한국어'} {t.learn.translation}
+                        한국어 번역
                       </p>
                       <p className="text-lg font-medium text-gray-900">{translation}</p>
                     </div>
