@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, List, User, LogOut, ChevronDown, Globe } from 'lucide-react';
+import { Home, BookOpen, List, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocale } from '../hooks/useLocale';
@@ -35,6 +35,25 @@ export function Layout({ children }: LayoutProps) {
     setIsLanguageDropdownOpen(false);
   };
 
+  // 언어별 국기 이모지 매핑
+  const getLanguageFlag = (language: string): string => {
+    const flagMap: { [key: string]: string } = {
+      '영어': '🇺🇸',
+      '일본어': '🇯🇵',
+      '중국어': '🇨🇳',
+      '프랑스어': '🇫🇷',
+      '독일어': '🇩🇪',
+      '스페인어': '🇪🇸',
+      '이탈리아어': '🇮🇹',
+      '러시아어': '🇷🇺',
+      '포르투갈어': '🇧🇷',
+      '아랍어': '🇸🇦',
+      '한국어': '🇰🇷',
+      'English': '🇺🇸',
+    };
+    return flagMap[language] || '🌐';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
@@ -55,7 +74,7 @@ export function Layout({ children }: LayoutProps) {
                   className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 >
                   <div className="flex items-center">
-                    <Globe className="w-4 h-4 mr-2 text-gray-500" />
+                    <span className="text-lg mr-2">{getLanguageFlag(selectedLanguage)}</span>
                     <span>{selectedLanguage}</span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${
@@ -69,13 +88,14 @@ export function Layout({ children }: LayoutProps) {
                       <button
                         key={language}
                         onClick={() => handleLanguageSelect(language)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors flex items-center ${
                           selectedLanguage === language
                             ? 'bg-blue-50 text-blue-700 font-medium'
                             : 'text-gray-700'
                         }`}
                       >
-                        {language}
+                        <span className="text-lg mr-2">{getLanguageFlag(language)}</span>
+                        <span>{language}</span>
                       </button>
                     ))}
                   </div>
@@ -88,7 +108,7 @@ export function Layout({ children }: LayoutProps) {
           {availableLanguages.length === 1 && (
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 rounded-lg">
-                <Globe className="w-4 h-4 mr-2 text-blue-600" />
+                <span className="text-lg mr-2">{getLanguageFlag(selectedLanguage)}</span>
                 <span className="text-blue-700">{selectedLanguage}</span>
               </div>
             </div>
