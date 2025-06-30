@@ -341,16 +341,6 @@ export function Home() {
           {/* Legend */}
           <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs">
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-gray-200 rounded-full mr-2"></div>
-              <BookOpen className="w-3 h-3 mr-1 text-blue-600" />
-              <span className="text-gray-600">{t.home.newSentences}</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-gray-200 rounded-full mr-2"></div>
-              <Brain className="w-3 h-3 mr-1 text-green-600" />
-              <span className="text-gray-600">{t.home.review}</span>
-            </div>
-            <div className="flex items-center">
               <div className="w-4 h-4 bg-white border-2 border-green-500 rounded-full mr-2 flex items-center justify-center">
                 <Check className="w-2 h-2 text-green-500" />
               </div>
