@@ -10,7 +10,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'da
 
 export function Home() {
   const { user } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, selectedLanguageInEnglish } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
   const [todaySentences, setTodaySentences] = useState(0);
@@ -230,7 +230,7 @@ export function Home() {
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            {selectedLanguage} {t.home.todayActivity}
+            {selectedLanguageInEnglish} {t.home.todayActivity}
           </h3>
           <p className="text-gray-600">{t.home.todayActivitySubtitle}</p>
         </div>

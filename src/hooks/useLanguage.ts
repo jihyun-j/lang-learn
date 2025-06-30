@@ -46,9 +46,30 @@ export function useLanguage() {
     }
   }, [user, languages]);
 
+  // Convert Korean language names to English
+  const getLanguageInEnglish = (language: string): string => {
+    const languageMap: { [key: string]: string } = {
+      '영어': 'English',
+      '일본어': 'Japanese',
+      '중국어': 'Chinese',
+      '프랑스어': 'French',
+      '독일어': 'German',
+      '스페인어': 'Spanish',
+      '이탈리아어': 'Italian',
+      '러시아어': 'Russian',
+      '포르투갈어': 'Portuguese',
+      '아랍어': 'Arabic',
+      '한국어': 'Korean',
+      'English': 'English',
+    };
+    return languageMap[language] || language;
+  };
+
   return {
     selectedLanguage,
+    selectedLanguageInEnglish: getLanguageInEnglish(selectedLanguage), // 새로 추가된 영어 표기
     setSelectedLanguage,
     availableLanguages: languages,
+    getLanguageInEnglish, // 유틸리티 함수로 제공
   };
 }

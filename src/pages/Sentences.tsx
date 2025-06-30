@@ -47,7 +47,7 @@ export function Sentences() {
   } | null>(null);
   
   const { user } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, selectedLanguageInEnglish } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
 
@@ -222,12 +222,12 @@ export function Sentences() {
         explanationData.explanation = result.explanation;
       } else {
         // Generate default explanation
-        explanationData.explanation = `This sentence demonstrates common usage patterns in ${selectedLanguage}. Practice pronunciation and pay attention to the structure.`;
+        explanationData.explanation = `This sentence demonstrates common usage patterns in ${selectedLanguageInEnglish}. Practice pronunciation and pay attention to the structure.`;
       }
     } catch (error) {
       console.warn('Failed to get additional explanation:', error);
       // Use default explanation
-      explanationData.explanation = `This sentence demonstrates common usage patterns in ${selectedLanguage}. Practice pronunciation and pay attention to the structure.`;
+      explanationData.explanation = `This sentence demonstrates common usage patterns in ${selectedLanguageInEnglish}. Practice pronunciation and pay attention to the structure.`;
     }
 
     setSelectedSentenceExplanation(explanationData);
@@ -411,7 +411,7 @@ export function Sentences() {
                             ? 'text-gray-300 cursor-not-allowed'
                             : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:shadow-md'
                       }`}
-                      title={isEditing ? t.sentences.cannotPlayWhileEditing : `${selectedLanguage} ${t.quiz.listenPronunciation} ${playingId === sentence.id ? `(${t.review.audioPlaying})` : ''}`}
+                      title={isEditing ? t.sentences.cannotPlayWhileEditing : `${selectedLanguageInEnglish} ${t.quiz.listenPronunciation} ${playingId === sentence.id ? `(${t.review.audioPlaying})` : ''}`}
                     >
                       <Volume2 className={`w-4 h-4 transition-transform ${
                         playingId === sentence.id ? 'scale-110' : 'group-hover:scale-110'
@@ -424,7 +424,7 @@ export function Sentences() {
                           onChange={(e) => setEditingData(prev => prev ? { ...prev, english_text: e.target.value } : null)}
                           className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                           rows={2}
-                          placeholder={`${selectedLanguage} ${t.learn.enterSentence}`}
+                          placeholder={`${selectedLanguageInEnglish} ${t.learn.enterSentence}`}
                         />
                       ) : (
                         <div>
@@ -558,7 +558,7 @@ export function Sentences() {
           <p className="text-lg text-gray-600">
             {dateRange.startDate || dateRange.endDate 
               ? t.sentences.noDateRange
-              : `${selectedLanguage} ${t.sentences.noSentences}`
+              : `${selectedLanguageInEnglish} ${t.sentences.noSentences}`
             }
           </p>
           <p className="text-sm text-gray-500 mt-2">
@@ -589,11 +589,11 @@ export function Sentences() {
             <h1 className="text-3xl font-bold text-gray-900">{t.sentences.title}</h1>
             <div className="ml-4 flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               <Globe className="w-4 h-4 mr-1" />
-              {selectedLanguage}
+              {selectedLanguageInEnglish}
             </div>
           </div>
           <p className="text-sm text-gray-600">
-            You are learning a total of {totalCount} sentences in {selectedLanguage}.
+            You are learning a total of {totalCount} sentences in {selectedLanguageInEnglish}.
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
@@ -819,7 +819,7 @@ export function Sentences() {
                 {/* Original Sentence */}
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h4 className="text-sm font-semibold text-blue-900 mb-2">
-                    {selectedLanguage} Original
+                    {selectedLanguageInEnglish} Original
                   </h4>
                   <p className="text-lg font-medium text-blue-800">
                     {selectedSentenceExplanation.sentence}

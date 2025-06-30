@@ -27,7 +27,7 @@ export function Learn() {
   const [canSave, setCanSave] = useState(false);
   
   const { user } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, selectedLanguageInEnglish } = useLanguage();
   const { locale } = useLocale();
   const t = getTranslation(locale);
 
@@ -378,7 +378,7 @@ export function Learn() {
               <div className="flex items-center">
                 <Globe className="w-5 h-5 text-blue-600 mr-2" />
                 <span className="text-sm font-medium text-blue-800">
-                  {t.learn.currentLanguage} <span className="font-bold">{selectedLanguage}</span>
+                  {t.learn.currentLanguage} <span className="font-bold">{selectedLanguageInEnglish}</span>
                 </span>
               </div>
               <p className="text-xs text-blue-600 mt-1">
@@ -389,7 +389,7 @@ export function Learn() {
             {/* Input Section */}
             <div>
               <label htmlFor="sentence" className="block text-sm font-medium text-gray-700 mb-3">
-                {selectedLanguage} {t.learn.enterSentence}
+                {selectedLanguageInEnglish} {t.learn.enterSentence}
               </label>
               <div className="relative">
                 <textarea
@@ -404,7 +404,7 @@ export function Learn() {
                               selectedLanguage === '스페인어' ? "e.g., ¿Cómo estás hoy?" :
                               selectedLanguage === '일본어' ? "e.g., 今日はいかがですか？" :
                               selectedLanguage === '중국어' ? "e.g., 你今天怎么样？" :
-                              `${selectedLanguage} ${t.learn.enterSentence}`}
+                              `${selectedLanguageInEnglish} ${t.learn.enterSentence}`}
                 />
                 
                 {/* Audio Play Button */}
@@ -417,7 +417,7 @@ export function Learn() {
                         ? 'text-white bg-blue-600 animate-pulse shadow-lg'
                         : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                     }`}
-                    title={`${selectedLanguage} ${t.learn.playPronunciation} ${isPlayingInput ? `(${t.learn.playing})` : ''}`}
+                    title={`${selectedLanguageInEnglish} ${t.learn.playPronunciation} ${isPlayingInput ? `(${t.learn.playing})` : ''}`}
                   >
                     <Volume2 className="w-5 h-5" />
                   </button>
@@ -566,7 +566,7 @@ export function Learn() {
                     <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="text-sm text-gray-600 mb-1">{selectedLanguage} {t.learn.original}</p>
+                          <p className="text-sm text-gray-600 mb-1">{selectedLanguageInEnglish} {t.learn.original}</p>
                           <p className="text-lg font-medium text-gray-900">{sentence}</p>
                         </div>
                         <button
@@ -577,7 +577,7 @@ export function Learn() {
                               ? 'text-white bg-blue-600 animate-pulse shadow-lg'
                               : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                           }`}
-                          title={`${selectedLanguage} ${t.learn.playPronunciation} ${isPlayingResult ? `(${t.learn.playing})` : ''}`}
+                          title={`${selectedLanguageInEnglish} ${t.learn.playPronunciation} ${isPlayingResult ? `(${t.learn.playing})` : ''}`}
                         >
                           <Volume2 className="w-5 h-5" />
                         </button>
