@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -20,10 +20,6 @@ interface ProfileStats {
     sentences: number;
     reviews: number;
     accuracy: number;
-  }>;
-  accuracyData: Array<{
-    range: string;
-    count: number;
   }>;
   monthlyProgress: Array<{
     month: string;
@@ -176,24 +172,6 @@ export function Profile() {
         };
       });
 
-      // Generate accuracy distribution
-      const accuracyRanges = [
-        { range: '90-100%', count: 0 },
-        { range: '80-89%', count: 0 },
-        { range: '70-79%', count: 0 },
-        { range: '60-69%', count: 0 },
-        { range: '0-59%', count: 0 },
-      ];
-
-      languageReviews.forEach(review => {
-        const accuracy = review.overall_score;
-        if (accuracy >= 90) accuracyRanges[0].count++;
-        else if (accuracy >= 80) accuracyRanges[1].count++;
-        else if (accuracy >= 70) accuracyRanges[2].count++;
-        else if (accuracy >= 60) accuracyRanges[3].count++;
-        else accuracyRanges[4].count++;
-      });
-
       // Generate real monthly progress data
       const monthsToShow = 6;
       const endDate = new Date();
@@ -264,7 +242,6 @@ export function Profile() {
         streakDays: userProgress?.current_streak || 0,
         totalStudyTime: userProgress?.total_study_time || 0,
         weeklyData,
-        accuracyData: accuracyRanges,
         monthlyProgress,
         difficultyDistribution,
         recentActivity,
@@ -647,30 +624,6 @@ export function Profile() {
           </ResponsiveContainer>
         </div>
 
-        {/* Accuracy Distribution */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.accuracyDistribution}</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={stats.accuracyData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ range, percent }) => `${range} (${(percent * 100).toFixed(0)}%)`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="count"
-              >
-                {stats.accuracyData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
         {/* Monthly Progress - Real Data */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.monthlyProgress}</h3>
@@ -699,27 +652,27 @@ export function Profile() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
 
-      {/* Weekly Accuracy Trend */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.weeklyAccuracy}</h3>
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={stats.weeklyData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" />
-            <YAxis domain={[0, 100]} />
-            <Tooltip formatter={(value) => [`${value}%`, t.common.accuracy]} />
-            <Line 
-              type="monotone" 
-              dataKey="accuracy" 
-              stroke="#F59E0B" 
-              strokeWidth={3}
-              dot={{ fill: '#F59E0B', strokeWidth: 2, r: 6 }}
-              name={t.common.accuracy}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {/* Weekly Accuracy Trend */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.weeklyAccuracy}</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={stats.weeklyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" />
+              <YAxis domain={[0, 100]} />
+              <Tooltip formatter={(value) => [`${value}%`, t.common.accuracy]} />
+              <Line 
+                type="monotone" 
+                dataKey="accuracy" 
+                stroke="#F59E0B" 
+                strokeWidth={3}
+                dot={{ fill: '#F59E0B', strokeWidth: 2, r: 6 }}
+                name={t.common.accuracy}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Recent Activity */}
