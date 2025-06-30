@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, FileText, RotateCcw, Tag } from 'lucide-react';
+import { Plus, Sparkles, BookOpen, Check, Globe, Volume2, AlertCircle, CheckCircle, XCircle, Lightbulb, RotateCcw, Tag } from 'lucide-react';
 import { translateSentence, checkGrammarAndSpelling, GrammarCheckResult } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -21,7 +21,6 @@ export function Learn() {
   
   // 문법 검사 관련 상태
   const [grammarCheck, setGrammarCheck] = useState<GrammarCheckResult | null>(null);
-  const [grammarCheckLoading, setGrammarCheckLoading] = useState(false);
   const [showGrammarCheck, setShowGrammarCheck] = useState(false);
   const [grammarCheckError, setGrammarCheckError] = useState<string | null>(null);
   
@@ -30,66 +29,46 @@ export function Learn() {
   const { locale } = useLocale();
   const t = getTranslation(locale);
 
-  // 수동 문법 검사 함수
-  const handleManualGrammarCheck = async () => {
-    if (!sentence.trim()) {
-      alert(t.learn.enterSentence);
-      return;
-    }
-
-    setGrammarCheckLoading(true);
-    setGrammarCheckError(null);
-    setShowGrammarCheck(false);
-
-    try {
-      const result = await checkGrammarAndSpelling(sentence, selectedLanguage);
-      setGrammarCheck(result);
-      setShowGrammarCheck(true);
-    } catch (error) {
-      console.error('Grammar check failed:', error);
-      setGrammarCheckError(error instanceof Error ? error.message : t.errors.grammarCheckFailed);
-      setGrammarCheck(null);
-      setShowGrammarCheck(false);
-    } finally {
-      setGrammarCheckLoading(false);
-    }
-  };
-
-  const applySuggestion = (suggestion: string) => {
-    setSentence(suggestion);
-    setGrammarCheck(null);
-    setShowGrammarCheck(false);
-  };
-
-  const applyCorrection = (original: string, suggestion: string) => {
-    const correctedSentence = sentence.replace(original, suggestion);
-    setSentence(correctedSentence);
-  };
-
-  // AI 번역과 저장을 동시에 처리하는 함수
-  const handleTranslateAndSave = async () => {
+  // 종합적인 문장 처리 함수 (번역 + 키워드 + 문법검사 + 저장)
+  const handleComprehensiveProcessing = async () => {
     if (!sentence.trim() || !user) return;
     
     setLoading(true);
+    setGrammarCheckError(null);
+    setAudioError(null);
+    
     try {
-      // AI 번역 수행
+      // 1. 문법 검사 수행
+      let grammarResult: GrammarCheckResult | null = null;
+      try {
+        grammarResult = await checkGrammarAndSpelling(sentence, selectedLanguage);
+        setGrammarCheck(grammarResult);
+        setShowGrammarCheck(true);
+      } catch (grammarError) {
+        console.warn('Grammar check failed, continuing with translation:', grammarError);
+        setGrammarCheckError(grammarError instanceof Error ? grammarError.message : '문법 검사에 실패했지만 번역을 계속 진행합니다.');
+      }
+
+      // 2. AI 번역 및 키워드 추출 수행
       const result = await translateSentence(sentence, selectedLanguage, locale === 'en' ? 'English' : '한국어');
       setTranslation(result.translation);
       setKeywords(result.keywords || []);
       setExplanation(result.explanation || '');
 
-      // 기존 문장이 있는지 확인
+      // 3. 기존 문장이 있는지 확인
       const { data: existingSentence, error: checkError } = await supabase
         .from('sentences')
         .select('id')
         .eq('user_id', user.id)
         .eq('english_text', sentence)
+        .eq('target_language', selectedLanguage)
         .limit(1);
 
       if (checkError) {
         throw checkError;
       }
 
+      // 4. 데이터베이스에 저장 또는 업데이트
       if (existingSentence && existingSentence.length > 0) {
         // 기존 문장이 있으면 업데이트
         const { error: updateError } = await supabase
@@ -98,7 +77,6 @@ export function Learn() {
             korean_translation: result.translation,
             keywords: result.keywords || [],
             difficulty: difficulty,
-            target_language: selectedLanguage,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingSentence[0].id);
@@ -122,8 +100,8 @@ export function Learn() {
 
       setSaved(true);
     } catch (error) {
-      console.error('Translation and save failed:', error);
-      alert(t.errors.translationFailed);
+      console.error('Comprehensive processing failed:', error);
+      alert(error instanceof Error ? error.message : t.errors.translationFailed);
     } finally {
       setLoading(false);
     }
@@ -146,6 +124,17 @@ export function Learn() {
     
     // 음성 재생 중지
     window.speechSynthesis.cancel();
+  };
+
+  const applySuggestion = (suggestion: string) => {
+    setSentence(suggestion);
+    setGrammarCheck(null);
+    setShowGrammarCheck(false);
+  };
+
+  const applyCorrection = (original: string, suggestion: string) => {
+    const correctedSentence = sentence.replace(original, suggestion);
+    setSentence(correctedSentence);
   };
 
   // 언어별 음성 코드 매핑
@@ -319,7 +308,7 @@ export function Learn() {
         </div>
       )}
 
-      {/* Tips Section - Moved to top */}
+      {/* Tips Section */}
       <div className="bg-blue-50 rounded-xl p-6">
         <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 {t.learn.tips}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
@@ -329,7 +318,7 @@ export function Learn() {
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <p>{t.learn.tipGrammar}</p>
+            <p>AI가 자동으로 문법, 번역, 키워드를 모두 분석해드려요</p>
           </div>
           <div className="flex items-start">
             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -369,7 +358,7 @@ export function Learn() {
                   rows={3}
                   value={sentence}
                   onChange={(e) => setSentence(e.target.value)}
-                  className="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors"
+                  className="w-full px-4 py-3 pr-16 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors"
                   placeholder={selectedLanguage === '영어' ? "예: How are you doing today?" : 
                               selectedLanguage === '프랑스어' ? "예: Comment allez-vous aujourd'hui?" :
                               selectedLanguage === '독일어' ? "예: Wie geht es Ihnen heute?" :
@@ -379,44 +368,21 @@ export function Learn() {
                               `${selectedLanguage} ${t.learn.enterSentence}`}
                 />
                 
-                {/* Input Box Controls */}
-                <div className="absolute right-3 top-3 flex items-center space-x-2">
-                  {/* Grammar Check Button */}
+                {/* Audio Play Button */}
+                {sentence.trim() && (
                   <button
-                    onClick={handleManualGrammarCheck}
-                    disabled={grammarCheckLoading || !sentence.trim()}
-                    className={`p-2 transition-all rounded-lg ${
-                      grammarCheckLoading
-                        ? 'text-blue-600 bg-blue-100 animate-pulse'
-                        : sentence.trim()
-                          ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
-                          : 'text-gray-300 cursor-not-allowed'
+                    onClick={() => playAudio(sentence, true)}
+                    disabled={isPlayingInput}
+                    className={`absolute right-3 top-3 p-2 transition-all rounded-lg ${
+                      isPlayingInput
+                        ? 'text-white bg-blue-600 animate-pulse shadow-lg'
+                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                     }`}
-                    title={grammarCheckLoading ? t.learn.analyzing : t.learn.grammarCheck}
+                    title={`${selectedLanguage} ${t.learn.playPronunciation} ${isPlayingInput ? `(${t.learn.playing})` : ''}`}
                   >
-                    {grammarCheckLoading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    ) : (
-                      <FileText className="w-5 h-5" />
-                    )}
+                    <Volume2 className="w-5 h-5" />
                   </button>
-                  
-                  {/* Audio Play Button */}
-                  {sentence.trim() && (
-                    <button
-                      onClick={() => playAudio(sentence, true)}
-                      disabled={isPlayingInput}
-                      className={`p-2 transition-all rounded-lg ${
-                        isPlayingInput
-                          ? 'text-white bg-blue-600 animate-pulse shadow-lg'
-                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title={`${selectedLanguage} ${t.learn.playPronunciation} ${isPlayingInput ? `(${t.learn.playing})` : ''}`}
-                    >
-                      <Volume2 className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
@@ -532,30 +498,32 @@ export function Learn() {
               </div>
             </div>
 
-            {/* Translate and Save Button */}
+            {/* Process and Save Button */}
             <div className="flex justify-center">
               <button
-                onClick={handleTranslateAndSave}
+                onClick={handleComprehensiveProcessing}
                 disabled={loading || !sentence.trim() || saved}
-                className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-bold text-lg hover:from-green-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg"
               >
                 {loading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
                 ) : saved ? (
-                  <Check className="w-5 h-5 mr-2" />
+                  <Check className="w-6 h-6 mr-3" />
                 ) : (
-                  <Plus className="w-5 h-5 mr-2" />
+                  <Sparkles className="w-6 h-6 mr-3" />
                 )}
-                {loading ? t.learn.translating : saved ? t.learn.saved : t.learn.saveSentence}
+                {loading ? 'AI 분석 중...' : saved ? '완료!' : 'AI 분석 및 저장'}
               </button>
             </div>
 
-            {/* Translation Result Display */}
+            {/* Comprehensive Results Display */}
             {translation && (
               <div className="space-y-6 pt-6 border-t border-gray-200">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">{t.learn.translationResult}</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 AI 분석 결과</h3>
+                  
+                  {/* Translation Result */}
+                  <div className="space-y-4">
                     <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -576,6 +544,7 @@ export function Learn() {
                         </button>
                       </div>
                     </div>
+                    
                     <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
                       <p className="text-sm text-gray-600 mb-1">{locale === 'en' ? 'English' : '한국어'} {t.learn.translation}</p>
                       <p className="text-lg font-medium text-gray-900">{translation}</p>
@@ -596,6 +565,7 @@ export function Learn() {
                           <span
                             key={index}
                             className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-300"
+                            title={keyword}
                           >
                             {keyword}
                           </span>
