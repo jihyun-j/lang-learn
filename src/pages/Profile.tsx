@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 import { User, Edit3, Save, X, Globe, BookOpen, TrendingUp, Target, Calendar, Award, Clock, Zap, Plus, Minus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -29,6 +29,7 @@ interface ProfileStats {
   difficultyDistribution: Array<{
     difficulty: string;
     count: number;
+    percentage: number;
   }>;
   recentActivity: Array<{
     date: string;
@@ -64,6 +65,13 @@ export function Profile() {
   const availableLanguages = [
     '영어', '일본어', '중국어', '프랑스어', '독일어', '스페인어', '이탈리아어', '러시아어', '포르투갈어', '아랍어'
   ];
+
+  // Colors for the pie chart
+  const DIFFICULTY_COLORS = {
+    easy: '#10B981',    // Green
+    medium: '#F59E0B',  // Yellow
+    hard: '#EF4444'     // Red
+  };
 
   useEffect(() => {
     if (user) {
@@ -203,11 +211,28 @@ export function Profile() {
         })
       );
 
-      // Generate difficulty distribution
+      // Generate difficulty distribution with real data
+      const easyCount = sentences?.filter(s => s.difficulty === 'easy').length || 0;
+      const mediumCount = sentences?.filter(s => s.difficulty === 'medium').length || 0;
+      const hardCount = sentences?.filter(s => s.difficulty === 'hard').length || 0;
+      const total = easyCount + mediumCount + hardCount;
+
       const difficultyDistribution = [
-        { difficulty: t.common.easy, count: sentences?.filter(s => s.difficulty === 'easy').length || 0 },
-        { difficulty: t.common.medium, count: sentences?.filter(s => s.difficulty === 'medium').length || 0 },
-        { difficulty: t.common.hard, count: sentences?.filter(s => s.difficulty === 'hard').length || 0 },
+        { 
+          difficulty: t.common.easy, 
+          count: easyCount,
+          percentage: total > 0 ? Math.round((easyCount / total) * 100) : 0
+        },
+        { 
+          difficulty: t.common.medium, 
+          count: mediumCount,
+          percentage: total > 0 ? Math.round((mediumCount / total) * 100) : 0
+        },
+        { 
+          difficulty: t.common.hard, 
+          count: hardCount,
+          percentage: total > 0 ? Math.round((hardCount / total) * 100) : 0
+        },
       ];
 
       // Generate recent activity from real data
@@ -321,6 +346,48 @@ export function Profile() {
       ...prev,
       target_languages: prev.target_languages.map((lang, i) => i === index ? value : lang)
     }));
+  };
+
+  // Custom tooltip for difficulty chart
+  const DifficultyTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-900">{`${label}`}</p>
+          <p className="text-sm text-gray-600">
+            {`${locale === 'en' ? 'Count' : '개수'}: ${data.count}${locale === 'en' ? ' sentences' : '개'}`}
+          </p>
+          <p className="text-sm text-gray-600">
+            {`${locale === 'en' ? 'Percentage' : '비율'}: ${data.percentage}%`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Custom label for pie chart
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, difficulty }: any) => {
+    if (percent === 0) return null;
+    
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="text-sm font-semibold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
   };
 
   if (loading || !profile || !stats) {
@@ -624,6 +691,82 @@ export function Profile() {
           </ResponsiveContainer>
         </div>
 
+        {/* Difficulty Distribution - Enhanced */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.difficultyDistribution}</h3>
+          {stats.difficultyDistribution.some(d => d.count > 0) ? (
+            <div className="space-y-6">
+              {/* Bar Chart */}
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={stats.difficultyDistribution} layout="horizontal">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="difficulty" type="category" width={60} />
+                  <Tooltip content={<DifficultyTooltip />} />
+                  <Bar dataKey="count" fill="#8B5CF6" />
+                </BarChart>
+              </ResponsiveContainer>
+              
+              {/* Pie Chart */}
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={stats.difficultyDistribution.filter(d => d.count > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={renderCustomLabel}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {stats.difficultyDistribution.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.difficulty === t.common.easy ? DIFFICULTY_COLORS.easy : 
+                              entry.difficulty === t.common.medium ? DIFFICULTY_COLORS.medium : 
+                              DIFFICULTY_COLORS.hard} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<DifficultyTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* Legend */}
+              <div className="flex justify-center space-x-6">
+                {stats.difficultyDistribution.map((item, index) => (
+                  <div key={index} className="flex items-center">
+                    <div 
+                      className="w-4 h-4 rounded mr-2"
+                      style={{ 
+                        backgroundColor: item.difficulty === t.common.easy ? DIFFICULTY_COLORS.easy : 
+                                        item.difficulty === t.common.medium ? DIFFICULTY_COLORS.medium : 
+                                        DIFFICULTY_COLORS.hard 
+                      }}
+                    ></div>
+                    <span className="text-sm text-gray-600">
+                      {item.difficulty} ({item.count})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <Target className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg font-medium">
+                  {locale === 'en' ? 'No sentences yet' : '아직 문장이 없습니다'}
+                </p>
+                <p className="text-sm">
+                  {locale === 'en' ? 'Start learning to see difficulty distribution' : '학습을 시작하여 난이도 분포를 확인해보세요'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Monthly Progress - Real Data */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.monthlyProgress}</h3>
@@ -636,20 +779,6 @@ export function Profile() {
               <Area type="monotone" dataKey="sentences" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} name={locale === 'en' ? 'New Sentences' : '새 문장'} />
               <Area type="monotone" dataKey="reviews" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name={locale === 'en' ? 'Reviews' : '복습'} />
             </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Difficulty Distribution */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">{t.profile.difficultyDistribution}</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stats.difficultyDistribution} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="difficulty" type="category" />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8B5CF6" />
-            </BarChart>
           </ResponsiveContainer>
         </div>
 
